@@ -1,0 +1,18 @@
+{
+  "auth": {
+    "clientId": "YOUR_OPENID_CLIENT_ID",
+    "redirectUri": "http://localhost:8080",
+    "authority": "YOUR_IDENTITY_PROVIDER_URL",
+    "metadataUri": "YOUR_IDENTITY_PROVIDER_URL/.well-known/openid-configuration",
+    "scope": "openid profile email nca"
+  },
+  "endpoints": {
+    "backend": "http://localhost:8000",
+    "nucleus": "YOUR_NUCLEUS_SERVER_URL"
+  },
+  "sessions": {
+    "maxTtl": 28800,
+    "sessionEndNotificationTime": 600,
+    "sessionEndNotificationDuration": 30
+  }
+}

@@ -1,0 +1,25 @@
+llms:
+  nim_llm:
+    _type: nim
+    model_name: mistralai/mistral-large-3-675b-instruct-2512
+    temperature: 0.0
+    max_tokens: 16384
+
+functions:
+  DsxCodeInteractive:
+    _type: omni.ai.aiq.dsx/DsxCodeInteractive
+    llm_name: nim_llm
+    system_message: "{messages/dsx_kit_code_system_message.md}"
+  DsxInfo:
+    _type: omni.ai.aiq.dsx/DsxInfo
+    llm_name: nim_llm
+    system_message: "{messages/dsx_kit_info_system_message.md}"
+
+workflow:
+  _type: omni.ai.aiq.dsx/DsxMultiAgent
+  llm_name: nim_llm
+  multishot: true
+  system_message: "{messages/dsx_supervisor_identity.md}"
+  tool_names:
+    - DsxCodeInteractive
+    - DsxInfo

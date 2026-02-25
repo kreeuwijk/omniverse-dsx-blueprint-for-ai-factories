@@ -1,0 +1,18 @@
+apiVersion: v2
+name: dsx
+description: >-
+  DSX - NVIDIA Omniverse Cloud Streaming Platform.
+  Deploys the Web UI frontend and Kit GPU streaming server
+  for cloud-based 3D visualization and collaboration.
+type: application
+version: 0.1.0
+appVersion: "2.0.0"
+keywords:
+  - nvidia
+  - omniverse
+  - streaming
+  - webrtc
+  - gpu
+  - 3d
+maintainers:
+  - name: DSX Team

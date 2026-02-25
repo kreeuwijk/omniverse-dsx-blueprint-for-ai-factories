@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "dsx.kit.fullname" . }}-config
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "dsx.kit.labels" . | nindent 4 }}
+data:
+  # StreamSDK extended timeout configuration
+  regkeys.txt: |
+    SenderTimeout=1000000

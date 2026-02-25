@@ -1,0 +1,19 @@
+{{- if .Values.web.pdb.enabled }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "dsx.web.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "dsx.web.labels" . | nindent 4 }}
+spec:
+  {{- if .Values.web.pdb.minAvailable }}
+  minAvailable: {{ .Values.web.pdb.minAvailable }}
+  {{- end }}
+  {{- if .Values.web.pdb.maxUnavailable }}
+  maxUnavailable: {{ .Values.web.pdb.maxUnavailable }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "dsx.web.selectorLabels" . | nindent 6 }}
+{{- end }}

@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+# Run Kit application with streaming enabled for local web development
+#
+# Usage:
+#   ./run_streaming.sh
+#   ./run_streaming.sh --/app/auto_load_usd=/path/to/scene.usd
+#
+# Environment variables:
+#   USD_URL - Path to USD file to load (optional, has default)
+
+set -e
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+cd "$SCRIPT_DIR"
+
+# Build if not already built
+if [ ! -d "_build" ]; then
+    echo "Building Kit application first..."
+
+    # 1. Initialize the kit-cae submodule
+    echo "Initializing kit-cae submodule..."
+    git submodule update --init --recursive
+
+    # 2. Build kit-cae schemas
+    echo "Building kit-cae schemas..."
+    ./deps/kit-cae/repo.sh schema
+
+    # 3. Build kit-cae extensions
+    echo "Building kit-cae extensions..."
+    ./deps/kit-cae/repo.sh build
+
+    # 4. Precache extensions (must run after kit-cae is built)
+    echo "Precaching extensions..."
+    ./repo.sh build -u
+
+    # 5. Build the DSX application
+    echo "Building DSX application..."
+    ./repo.sh build -r
+fi
+
+# Launch Kit with streaming configuration using repo.sh
+echo "Starting Kit with streaming enabled..."
+echo "Loading USD: $USD_URL"
+echo "Connect your web browser to http://localhost:8080?server=localhost"
+echo ""
+
+# Run the streaming version with no window
+./repo.sh launch dsx_streaming.kit -- \
+    --no-window \
+    "$@"

@@ -1,0 +1,133 @@
+# SPDX-FileCopyrightText: Copyright (c) 2024 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: LicenseRef-NvidiaProprietary
+#
+# NVIDIA CORPORATION, its affiliates and licensors retain all intellectual
+# property and proprietary rights in and to this material, related
+# documentation and any modifications thereto. Any use, reproduction,
+# disclosure or distribution of this material and related documentation
+# without an express license agreement from NVIDIA CORPORATION or
+# its affiliates is strictly prohibited.
+
+[package]
+title = "DSX Streaming"
+version = "2.0.0"
+description = "Configuration for local streaming deployments of DSX"
+keywords = ["experience", "app", "dev", "streaming"]
+template_name = "omni.streaming_configuration"
+
+[dependencies]
+"dsx" = {}  # Application kit file
+"omni.kit.livestream.app" = {}  # Livestream extension for local streaming
+
+[settings.app]
+fastShutdown = true
+name = "DSX Streaming"  # Application Display Name
+renderer.resolution.height = 1080
+renderer.resolution.width = 1920
+window.height = 1080
+window.width = 1920
+
+[settings]
+rtx.post.aa.op = 3
+rtx.verifyDriverVersion.enabled = false
+renderer.asyncInit = true # Don't block while renderer inits
+renderer.gpuEnumeration.glInterop.enabled = false # Improves startup speed.
+rtx.ecoMode.enabled = false
+rtx.hydra.geometrystreaming.gpuBudgetMB = 64000
+rtx.hydra.geometrystreaming.instanceBudget = 14388608
+rtx.hydra.mdlMaterialWarmup = true # start loading the MDL shaders needed before any delegate is actually created.
+rtx-transient.dlssg.enabled = true
+rtx-transient.scenedb.forceMaxTLASInstancesLimit = 15000000
+rtx-transient.scenedb.instanceBudget=1000000
+# Settings required for CAE
+# Necessary for Flow
+exts."omni.flowusd".voxelize_velocity_vec4 = false
+exts."omni.flowusd".voxelize_velocity_float = true
+# Necessary for IndeX
+rtx.index.overrideSubdivisionMode = "kd_tree"
+rtx.index.overrideSubdivisionPartCount = 1
+rtx.index.compositeEnabled = 1
+
+[settings.app.extensions]
+registryEnabled = true
+supportedTargets.platform = []  # Skip checking supported platform/config when building
+excluded = [
+    "omni.kit.developer.bundle",
+]
+
+[settings.app.exts]
+folders.'++' = [  # Search paths for extensions.
+    "${app}/../exts",
+    "${app}/../apps",
+    "${app}/../extscache",
+    "${app}/../kit-cae/apps",
+    "${app}/../kit-cae/exts",
+    # Extra paths required for the repo_precache_exts step
+    "./deps/kit-cae/_build/${platform}/${config}/apps",
+    "./deps/kit-cae/_build/${platform}/${config}/exts"
+]
+
+[settings.app.file]
+ignoreUnsavedOnExit = true
+
+[settings.app.rendergraph]
+maxFramesInFlight = 2
+
+[template]
+type = "ApplicationLayerTemplate" # Repo Template Metadata
+
+
+
+########################################################################################################################
+# BEGIN GENERATED PART (Remove from 'BEGIN' to 'END' to regenerate)
+########################################################################################################################
+
+# Kit SDK Version: 109.0.3+production.263267.62477c11.gl
+
+# Version lock for all dependencies:
+[settings.app.exts]
+enabled = [
+	"omni.ai.chat_usd.bundle-2.0.25",
+	"omni.ai.langchain.agent.usd_code-2.0.15",
+	"omni.ai.langchain.core-2.2.4",
+	"omni.ai.langchain.extra-2.0.6",
+	"omni.ai.langchain.nat-1.0.3",
+	"omni.ai.langchain.widget.core-3.0.0",
+	"omni.ai.nat.agent.chat_usd-1.0.0",
+	"omni.anim.curve.core-1.5.3",
+	"omni.anim.timeline-109.0.1",
+	"omni.flowusd-109.0.2",
+	"omni.flowusd.bundle-1.2.0",
+	"omni.flowusd.ui-109.0.0",
+	"omni.graph.action-2.0.0",
+	"omni.graph.action_nodes-2.0.3",
+	"omni.graph.action_nodes_core-2.0.1",
+	"omni.graph.nodes-2.1.6",
+	"omni.graph.nodes_core-2.0.3",
+	"omni.graph.scriptnode-2.1.2",
+	"omni.graph.ui_nodes-2.0.6",
+	"omni.kit.asset_converter-5.1.1",
+	"omni.kit.browser.core-2.3.18",
+	"omni.kit.browser.folder.core-2.0.2",
+	"omni.kit.data2ui.core-1.1.4",
+	"omni.kit.data2ui.usd-1.1.4",
+	"omni.kit.livestream.app-9.0.1",
+	"omni.kit.livestream.core-9.0.1",
+	"omni.kit.livestream.messaging-1.2.1",
+	"omni.kit.livestream.webrtc-9.1.1",
+	"omni.kit.sequencer.core-108.1.1",
+	"omni.kit.sequencer.usd-108.1.1",
+	"omni.kit.tool.asset_importer-5.1.3",
+	"omni.kit.widget.zoombar-1.0.7",
+	"omni.no_code_ui.bundle-1.1.4",
+	"omni.usd.schema.flow-109.0.1",
+	"omni.usd.schema.sequence-3.1.2",
+	"omni.usd_viewer.samples-106.3.3",
+	"omni.vdb_timesample_editor-0.2.3",
+	"omni.warp.core-1.11.1",
+	"omni.web.messaging.core-0.0.4",
+]
+
+########################################################################################################################
+# END GENERATED PART
+########################################################################################################################

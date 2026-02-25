@@ -1,0 +1,35 @@
+[package]
+version = "0.1.0"
+authors = ["NVIDIA"]
+title = "DSX - Datacenter Digital Twin AI Agent"
+description = "Multi-agent system for datacenter digital twin operations: waypoint navigation, scene authoring, and component inspection."
+category = "AI"
+keywords = ["AI", "datacenter", "digital-twin", "navigation", "scene-authoring"]
+icon = "data/icon.png"
+preview_image = "data/preview.png"
+changelog = "docs/CHANGELOG.md"
+readme = "docs/README.md"
+
+[dependencies]
+"omni.ai.nat.agent.chat_usd" = {}
+"omni.ai.chat_usd.bundle" = {}
+"omni.ai.langchain.extra" = {}
+"omni.kit.quicklayout" = {}
+"omni.web.messaging.core" = {}
+
+[[python.module]]
+name = "omni.ai.aiq.dsx"
+
+[[python.module]]
+name = "dsxcode"
+
+[[python.module]]
+name = "dsxinfo"
+
+[[test]]
+stdoutFailPatterns.exclude = ["*Warning:*"]
+
+args = [
+    "--no-window",
+    "--/app/fastShutdown=1",
+]

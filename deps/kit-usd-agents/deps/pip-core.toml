@@ -1,0 +1,31 @@
+[[dependency]]
+# This file is used to install the pip dependencies for the core extension.
+python = "../_build/target-deps/python"
+packages = [
+    # Local packages - use ./ prefix to ensure pip uses local source, not external registry
+    "./source/modules/lc_agent",
+    "./source/modules/rags/rag_modifiers",
+    "./source/modules/rags/rag_nodes",
+    "./source/modules/rags/retrievers",
+    "./source/modules/agents/usd",
+    "./source/modules/agents/interactive",
+    "./source/modules/data_generation/usdcode",
+
+    # External dependencies
+    "blobfile",
+    "faiss-cpu==1.12.0",
+    "fastapi<0.120.0",
+    "jsonschema",
+    "langchain",
+    "langchain-nvidia-ai-endpoints",
+    "langchain-openai",
+    "numpy",
+    "tiktoken",
+    "uvicorn",
+]
+extra_args = ["--no-cache-dir", "--force-reinstall", "--upgrade", "--ignore-installed"]
+target = "../_build/target-deps/pip_core_prebundle"
+platforms = ["*"]
+download_only = false
+append_to_install_folder = true
+gather_licenses_path = "../_build/PACKAGE-LICENSES/PIP-prebundled-LICENSES.txt"

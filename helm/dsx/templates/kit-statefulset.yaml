@@ -1,0 +1,155 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "dsx.kit.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "dsx.kit.labels" . | nindent 4 }}
+spec:
+  serviceName: {{ include "dsx.kit.fullname" . }}
+  replicas: {{ .Values.kit.replicaCount }}
+  podManagementPolicy: Parallel
+  selector:
+    matchLabels:
+      {{- include "dsx.kit.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/kit-configmap.yaml") . | sha256sum }}
+        {{- with .Values.kit.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        {{- include "dsx.kit.labels" . | nindent 8 }}
+        {{- with .Values.kit.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "dsx.serviceAccountName" . }}
+      automountServiceAccountToken: false
+      securityContext:
+        {{- toYaml .Values.kit.podSecurityContext | nindent 8 }}
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: kit
+          image: {{ include "dsx.kit.image" . }}
+          imagePullPolicy: {{ .Values.kit.image.pullPolicy }}
+          securityContext:
+            {{- toYaml .Values.kit.securityContext | nindent 12 }}
+          ports:
+            - name: signaling
+              containerPort: 49100
+              protocol: TCP
+            - name: health
+              containerPort: 8111
+              protocol: TCP
+            - name: control
+              containerPort: {{ .Values.kit.agentPort | default 8012 }}
+              protocol: TCP
+            # Streaming data ports (47995-48012)
+            {{- range $i := untilStep 47995 48013 1 }}
+            - name: stream-{{ sub $i 47995 }}
+              containerPort: {{ $i }}
+              protocol: TCP
+            {{- end }}
+            # Additional streaming ports (49000-49007)
+            {{- range $i := untilStep 49000 49008 1 }}
+            - name: stream-x-{{ sub $i 49000 }}
+              containerPort: {{ $i }}
+              protocol: TCP
+            {{- end }}
+          env:
+            - name: USER_ID
+              value: {{ .Values.kit.config.userId | quote }}
+            - name: NVDA_KIT_NUCLEUS
+              value: {{ .Values.kit.config.nucleusServer | quote }}
+            - name: NVDA_KIT_ARGS
+              value: {{ .Values.kit.config.kitArgs | quote }}
+            - name: OM_KIT_VERBOSE
+              value: {{ .Values.kit.config.kitVerbose | quote }}
+          livenessProbe:
+            {{- toYaml .Values.kit.livenessProbe | nindent 12 }}
+          readinessProbe:
+            {{- toYaml .Values.kit.readinessProbe | nindent 12 }}
+          startupProbe:
+            {{- toYaml .Values.kit.startupProbe | nindent 12 }}
+          resources:
+            {{- toYaml .Values.kit.resources | nindent 12 }}
+          volumeMounts:
+            - name: ov-cache
+              mountPath: /home/ubuntu/.cache/ov
+            - name: ov-local-share
+              mountPath: /home/ubuntu/.local/share/ov
+            - name: stream-sdk-config
+              mountPath: /home/ubuntu/.config/regkeys.txt
+              subPath: regkeys.txt
+              readOnly: true
+            - name: ov-config
+              mountPath: /home/ubuntu/.nvidia-omniverse/config
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: stream-sdk-config
+          configMap:
+            name: {{ include "dsx.kit.fullname" . }}-config
+        - name: ov-config
+          emptyDir:
+            sizeLimit: 16Mi
+        - name: tmp
+          emptyDir:
+            sizeLimit: 1Gi
+        {{- if not .Values.kit.persistence.ovCache.enabled }}
+        - name: ov-cache
+          emptyDir: {}
+        {{- end }}
+        {{- if not .Values.kit.persistence.ovLocalShare.enabled }}
+        - name: ov-local-share
+          emptyDir: {}
+        {{- end }}
+      {{- with .Values.kit.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.kit.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.kit.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+  volumeClaimTemplates:
+    {{- if .Values.kit.persistence.ovCache.enabled }}
+    - metadata:
+        name: ov-cache
+        labels:
+          {{- include "dsx.kit.labels" . | nindent 10 }}
+      spec:
+        accessModes:
+          {{- toYaml .Values.kit.persistence.ovCache.accessModes | nindent 10 }}
+        {{- if .Values.kit.persistence.ovCache.storageClass }}
+        storageClassName: {{ .Values.kit.persistence.ovCache.storageClass | quote }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.kit.persistence.ovCache.size }}
+    {{- end }}
+    {{- if .Values.kit.persistence.ovLocalShare.enabled }}
+    - metadata:
+        name: ov-local-share
+        labels:
+          {{- include "dsx.kit.labels" . | nindent 10 }}
+      spec:
+        accessModes:
+          {{- toYaml .Values.kit.persistence.ovLocalShare.accessModes | nindent 10 }}
+        {{- if .Values.kit.persistence.ovLocalShare.storageClass }}
+        storageClassName: {{ .Values.kit.persistence.ovLocalShare.storageClass | quote }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.kit.persistence.ovLocalShare.size }}
+    {{- end }}

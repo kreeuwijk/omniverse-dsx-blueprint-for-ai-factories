@@ -1,0 +1,9 @@
+[submodule "deps/kit-usd-agents"]
+	path = deps/kit-usd-agents
+	url = https://github.com/NVIDIA-Omniverse/kit-usd-agents.git
+	ignore = dirty
+[submodule "deps/kit-cae"]
+	path = deps/kit-cae
+	url = https://gitlab-master.nvidia.com/omniverse/kit-extensions/kit-cae.git
+	branch = public/1.0
+	ignore = dirty

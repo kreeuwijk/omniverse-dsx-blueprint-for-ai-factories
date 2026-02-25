@@ -1,0 +1,53 @@
+# Docker Compose for local development with Kit streaming
+#
+# Usage:
+#   docker compose up        # Start Kit and Web containers
+#   docker compose up -d     # Start in background
+#   docker compose down      # Stop containers
+#
+# Access:
+#   Web UI: http://localhost:8080?server=localhost
+#   Kit signaling: localhost:49100
+
+services:
+  kit:
+    image: "dsx-kit:latest"
+    build:
+      context: .
+    privileged: true
+    network_mode: host
+    ports:
+      - "1024:1024/udp"
+      - "49100:49100/tcp"
+      - "47995-48012:47995-48012/tcp"
+      - "49000-49007:49000-49007/tcp"
+      - "47995-48012:47995-48012/udp"
+      - "49000-49007:49000-49007/udp"
+    entrypoint: ["./scripts/run_streaming.sh"]
+    environment:
+      USD_URL: "${USD_URL:-/app/assets/main/main.usda}"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              device_ids: ["0"]
+              capabilities: [gpu]
+    volumes:
+      - "ov-cache:/home/ubuntu/.cache/ov"
+      - "ov-local-share:/home/ubuntu/.local/share/ov/"
+
+  web:
+    image: "dsx-web:latest"
+    build:
+      context: web
+      dockerfile: Dockerfile
+    ports:
+      - "8080:80/tcp"
+    environment:
+      VITE_OMNIVERSE_SERVER: "localhost"
+      VITE_SIGNALING_PORT: "49100"
+
+volumes:
+  ov-cache:
+  ov-local-share:

@@ -1,0 +1,278 @@
+# SPDX-FileCopyrightText: Copyright (c) 2024 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+# SPDX-License-Identifier: LicenseRef-NvidiaProprietary
+#
+# NVIDIA CORPORATION, its affiliates and licensors retain all intellectual
+# property and proprietary rights in and to this material, related
+# documentation and any modifications thereto. Any use, reproduction,
+# disclosure or distribution of this material and related documentation
+# without an express license agreement from NVIDIA CORPORATION or
+# its affiliates is strictly prohibited.
+
+[package]
+title = "DSX"
+version = "2.0.0"
+description = """This application presents an interactive experience authored with OpenUSD. The application can be hosted on RTX hardware and streamed to other devices. Messaging supports bi-directional communication between this application and the client that incorporates the stream"""
+keywords = ["app"]  # Extension Manager keyword for filtering.
+template_name = "omni.usd_viewer"
+
+[dependencies]
+"omni.activity.profiler" = {}  # For showing RTX loading progress
+"omni.activity.pump" = {}  # For showing RTX loading progress
+"omni.anim.curve.core" = {}
+"omni.anim.timeline" = {}
+"omni.graph.action" = {}
+"omni.graph.nodes" = {}
+"omni.graph.scriptnode" = {}
+"omni.graph.ui_nodes" = {}
+"omni.hydra.rtx" = {}
+"omni.hydra.usdrt_delegate" = {}
+"omni.kit.manipulator.camera" = {}
+"omni.kit.manipulator.selection" = {}
+"omni.kit.renderer.core" = {}
+"omni.kit.sequencer.core" = {}
+"omni.kit.uiapp" = {}
+"omni.kit.viewport.ready" = {}  # Show RTX loading information during startup
+"omni.kit.viewport.utility" = {}
+"omni.kit.viewport.window" = {}
+"omni.no_code_ui.bundle" = {}
+"omni.rtx.settings.core" = {}  # RTX settings
+"omni.timeline" = {}
+"omni.ujitso.client" = {}
+"omni.usd_viewer.samples" = {}
+"usdrt.scenegraph" = {}
+
+# CAE Extensions
+"omni.cae.schema" = {order = -100} # all USD schemas should be loaded with order = -100
+"omni.cae.data" = {}
+"omni.cae.cgns" = {}
+"omni.cae.npz" = {}
+"omni.cae.asset_importer.cgns" = {}
+"omni.cae.asset_importer.npz" = {}
+
+# CAE Algorithms
+"omni.cae.algorithms.core" = {}
+"omni.cae.index" = {}
+"omni.cae.flow" = {}
+"omni.cae.algorithms.warp" = {}
+
+# Omni CAE SIDS data model
+"omni.cae.sids" = {}
+
+# Other dependencies required by the CAE extensions
+"omni.flowusd.bundle" = {}
+
+"dsx.setup_extension" = { order = 1000 }
+"manager" = {}
+"omni.ai.aiq.dsx" = {}  # DSX Datacenter Digital Twin AI Agent
+
+
+[settings.persistent.app]
+viewport.autoFrame.mode = "first_open"  # Auto frame the first time the viewport is opened
+viewport.defaults.tickRate = 60  # Lock to 60fps
+viewport.defaults.showByPurpose.proxy = true  # Show proxy purpose prims in viewport
+viewport.noPadding = true  # Remove default frame around viewport
+
+[settings.persistent.exts]
+"omni.kit.window.sequencer".useSequencerCamera = true  # Sequencer Camera Sync ON
+
+[settings.persistent]
+metricsAssembler.showUnitsOverlay = false
+omnigraph.useSchemaPrims = true
+omnigraph.disablePrimNodes = false
+renderer.rtpt.enabled = true  # RTPT (Path Tracing 2.0) On
+rtx.mdltranslator.distillMaterial = true  # Render Preferences - Material Distilling ON
+rtx.modes.rt2.enable = true  # RTPT (Path Tracing 2.0) On
+rtx.rendermode = "RealTimePathTracing"  # Enable Real Time Path Tracing
+rtx-transient.resourcemanager.enableTextureStreaming = true  # Texture Streaming
+
+# Settings required for CAE
+# Necessary for Flow
+exts."omni.flowusd".voxelize_velocity_vec4 = false
+exts."omni.flowusd".voxelize_velocity_float = true
+# Necessary for IndeX
+rtx.index.overrideSubdivisionMode = "kd_tree"
+rtx.index.overrideSubdivisionPartCount = 1
+rtx.index.compositeEnabled = 1
+
+[settings.app]
+titleVersion = "2.0.0"
+content.emptyStageOnStart = false  # Disabled - auto_load_usd will open the stage instead
+fastShutdown = true  # Skip long full shutdown and exit quickly
+livestream.allowResize = 1
+livestream.skipCapture = 1  # livestream skipCapture ON for local streaming
+name = "DSX"
+renderer.resolution.width = 1920
+renderer.resolution.height = 1080
+auto_load_usd = "omniverse://content.ov.nvidia.com/Projects/Demos/DSX_BP/Assembly/DSX_Main.usda"
+enableDeveloperWarnings = false
+
+[settings.app.environment]
+name = "DSX"
+
+[settings.app.usdrt.population.utils]
+mergeInstances = false
+mergeMaterials = false
+
+[settings.app.viewport.defaults]
+fillViewport = true
+guide.grid.visible = false
+guide.axis.visible = false
+hud.visible = false
+scene.cameras.visible = false
+scene.lights.visible = false
+showByPurpose.proxy = true
+
+[settings.app.exts.folders]
+'++' = [  # Search paths for extensions.
+    "${app}/../apps",
+    "${app}/../exts",
+    "${app}/../extscache/",
+    "${app}/../kit-cae/apps",
+    "${app}/../kit-cae/exts",
+    # Extra paths required for the repo_precache_exts step
+    "./deps/kit-cae/_build/${platform}/${config}/apps",
+    "./deps/kit-cae/_build/${platform}/${config}/exts",
+    # DSX agent extension (kit-usd-agents)
+    "${app}/../../deps/kit-usd-agents/_build/windows-x86_64/release/exts",
+]
+
+[settings.app.file]
+ignoreUnsavedOnExit = true  # enable quitting without confirmation
+
+[settings.app.font]
+file = "${fonts}/OpenSans-SemiBold.ttf"
+size = 16
+
+[settings.app.layout]  # this is a custom setting used in our app setup to choose the Layout
+name = "default"
+
+[settings.app."omni.graph.scriptnode"]
+opt_in = true
+
+[settings.app.window]
+title = "DSX"
+width = 1920
+height = 1080
+x = -1
+y = -1
+
+[settings.crashreporter.data]
+experience = "DSX"
+
+[settings.exts]
+"omni.kit.renderer.core".present.enabled = true  # Enable the present thread
+"omni.kit.renderer.core".present.presentAfterRendering = true  # Ensure the present thread waits for the rendering to complete
+"omni.kit.window.viewport".showContextMenu = false  # Disable context menu, viewer not editor.
+
+[settings]
+crashreporter.compressDumpFiles = true
+renderer.asyncInit = true  # Don't block while renderer inits
+renderer.enabled = "rtx"  # enable rtx renderer
+renderer.gpuEnumeration.glInterop.enabled = false  # Improves startup speed
+# By default rtx is setup to be mgpu but in some context you might want to run on
+# a single gpu if so set this setting to false
+renderer.multiGpu.enabled = true
+rendergraph.maxFramesInFlight = 2
+rtx.ecoMode.enabled = false
+rtx.hydra.geometrystreaming.gpuBudgetMB = 64000
+rtx.hydra.geometrystreaming.instanceBudget = 14388608
+rtx.hydra.mdlMaterialWarmup = true  # start loading MDL shaders early
+rtx.occlusionDetection.enabled = true  # Skip rendering occluded objects (reduces GPU load)
+rtx.post.aa.op = 3
+rtx.post.tonemap.filmIso = 180
+rtx.rendermode = "RealTimePathTracing"
+rtx.rtpt.cached.enabled = true  # Cached path tracing - reuses temporal data, significantly reduces render cost for CAE
+rtx.verifyDriverVersion.enabled = false
+rtx-defaults.rendermode = "RealTimePathTracing"
+rtx-transient.dlssg.enabled = true  # DLSS Frame Generation - helps maintain framerate during heavy CAE rendering
+rtx-transient.ptEnabled = false  # Disable legacy path tracing
+rtx-transient.rt2Enabled = true  # Enable RT2 (more efficient path tracing engine)
+rtx-transient.scenedb.forceMaxTLASInstancesLimit = 15000000
+rtx-transient.scenedb.instanceBudget = 1000000
+
+# Material sync settings (useful for NVCF / streaming)
+rtx.materialDb.syncLoads = true
+rtx.hydra.materialSyncLoads = true
+exts."omni.kit.plugin".syncUsdLoads = true
+
+# Settings required for CAE
+# Necessary for Flow
+exts."omni.flowusd".voxelize_velocity_vec4 = false
+exts."omni.flowusd".voxelize_velocity_float = true
+# Necessary for IndeX
+rtx.index.overrideSubdivisionMode = "kd_tree"
+rtx.index.overrideSubdivisionPartCount = 1
+rtx.index.compositeEnabled = 1
+
+[settings.exts."omni.appwindow"]
+listenF11 = false
+listenF7 = false
+
+[settings.telemetry]
+# Anonymous Kit application usage telemetry
+enableAnonymousData = true
+enableAnonymousAppName = true
+
+[settings.UJITSO]
+# UJITSO supports loading cached representations of assets.
+# These settings controls what is loaded from cache and where from.
+geometry = true
+
+
+[settings.privacy]
+externalBuild = true
+
+[template]
+type = "ApplicationTemplate" # Repo Template Metadata
+
+
+########################################################################################################################
+# BEGIN GENERATED PART (Remove from 'BEGIN' to 'END' to regenerate)
+########################################################################################################################
+
+# Kit SDK Version: 109.0.3+production.263267.62477c11.gl
+
+# Version lock for all dependencies:
+[settings.app.exts]
+enabled = [
+	"omni.ai.chat_usd.bundle-2.0.25",
+	"omni.ai.langchain.agent.usd_code-2.0.15",
+	"omni.ai.langchain.core-2.2.4",
+	"omni.ai.langchain.extra-2.0.6",
+	"omni.ai.langchain.nat-1.0.3",
+	"omni.ai.langchain.widget.core-3.0.0",
+	"omni.ai.nat.agent.chat_usd-1.0.0",
+	"omni.anim.curve.core-1.5.3",
+	"omni.anim.timeline-109.0.1",
+	"omni.flowusd-109.0.2",
+	"omni.flowusd.bundle-1.2.0",
+	"omni.flowusd.ui-109.0.0",
+	"omni.graph.action-2.0.0",
+	"omni.graph.action_nodes-2.0.3",
+	"omni.graph.action_nodes_core-2.0.1",
+	"omni.graph.nodes-2.1.6",
+	"omni.graph.nodes_core-2.0.3",
+	"omni.graph.scriptnode-2.1.2",
+	"omni.graph.ui_nodes-2.0.6",
+	"omni.kit.asset_converter-5.1.1",
+	"omni.kit.browser.core-2.3.18",
+	"omni.kit.browser.folder.core-2.0.2",
+	"omni.kit.data2ui.core-1.1.4",
+	"omni.kit.data2ui.usd-1.1.4",
+	"omni.kit.livestream.messaging-1.2.1",
+	"omni.kit.sequencer.core-108.1.1",
+	"omni.kit.sequencer.usd-108.1.1",
+	"omni.kit.tool.asset_importer-5.1.3",
+	"omni.kit.widget.zoombar-1.0.7",
+	"omni.no_code_ui.bundle-1.1.4",
+	"omni.usd.schema.flow-109.0.1",
+	"omni.usd.schema.sequence-3.1.2",
+	"omni.usd_viewer.samples-106.3.3",
+	"omni.vdb_timesample_editor-0.2.3",
+	"omni.warp.core-1.11.1",
+	"omni.web.messaging.core-0.0.4",
+]
+
+########################################################################################################################
+# END GENERATED PART
+########################################################################################################################

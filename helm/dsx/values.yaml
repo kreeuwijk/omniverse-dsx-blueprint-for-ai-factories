@@ -1,0 +1,374 @@
+# =============================================================================
+# DSX Helm Chart - values.yaml
+# NVIDIA Omniverse Cloud Streaming Platform
+# =============================================================================
+
+# -- Global settings shared by all components
+global:
+  # -- Image pull secrets for private registries (e.g., nvcr.io)
+  imagePullSecrets: []
+  #   - name: ngc-secret
+
+# =============================================================================
+# Web UI (Frontend) Configuration
+# =============================================================================
+web:
+  # -- Number of replicas for the Web UI deployment
+  replicaCount: 2
+
+  image:
+    # -- Web UI container image repository
+    repository: dsx-web
+    # -- Image pull policy
+    pullPolicy: IfNotPresent
+    # -- Image tag (defaults to Chart appVersion)
+    tag: ""
+
+  # -- Annotations to add to the web deployment pods
+  podAnnotations: {}
+
+  # -- Additional labels to add to the web deployment pods
+  podLabels: {}
+
+  # -- Node selector for web pods
+  nodeSelector: {}
+
+  # -- Tolerations for web pods
+  tolerations: []
+
+  # -- Affinity rules for web pods
+  affinity: {}
+
+  # -- Resource requests and limits for web containers
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+      ephemeral-storage: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+      ephemeral-storage: 512Mi
+
+  # -- Security context for the web pod
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+    runAsGroup: 1000
+    fsGroup: 1000
+    seccompProfile:
+      type: RuntimeDefault
+
+  # -- Security context for the web container
+  securityContext:
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: false
+    runAsNonRoot: true
+    runAsUser: 1000
+    runAsGroup: 1000
+    capabilities:
+      drop:
+        - ALL
+
+  # -- Web UI service configuration
+  service:
+    type: ClusterIP
+    port: 8080
+    targetPort: 8080
+    annotations: {}
+
+  # -- Environment variables for the web frontend (non-sensitive)
+  # These are injected via envsubst into dist/config/main.json at startup
+  config:
+    # -- OpenID Connect authority URL
+    authAuthority: ""
+    # -- OpenID Connect client ID
+    authClientId: ""
+    # -- OpenID Connect redirect URI after authentication
+    authRedirectUri: ""
+    # -- OpenID Connect metadata endpoint URL
+    authMetadataUri: ""
+    # -- OpenID Connect scopes
+    authScope: "openid profile email nca"
+    # -- Portal backend API URL
+    backendUrl: ""
+    # -- Nucleus server URL
+    nucleusUrl: ""
+    # -- Admin group identifier
+    adminGroupId: ""
+    # -- User group identifier
+    userGroupId: ""
+    # -- Optional AI chat API endpoint
+    viteChatApiUrl: ""
+
+  # -- Liveness probe configuration
+  livenessProbe:
+    httpGet:
+      path: /
+      port: http
+    initialDelaySeconds: 10
+    periodSeconds: 30
+    timeoutSeconds: 5
+    failureThreshold: 3
+
+  # -- Readiness probe configuration
+  readinessProbe:
+    httpGet:
+      path: /
+      port: http
+    initialDelaySeconds: 5
+    periodSeconds: 10
+    timeoutSeconds: 3
+    failureThreshold: 3
+
+  # -- Startup probe configuration
+  startupProbe:
+    httpGet:
+      path: /
+      port: http
+    initialDelaySeconds: 3
+    periodSeconds: 5
+    timeoutSeconds: 3
+    failureThreshold: 10
+
+  # -- Horizontal Pod Autoscaler configuration for web
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 70
+    targetMemoryUtilizationPercentage: 80
+
+  # -- Pod Disruption Budget for web
+  pdb:
+    enabled: true
+    minAvailable: 1
+
+# =============================================================================
+# Kit Application (GPU Streaming Server) Configuration
+# =============================================================================
+kit:
+  # -- Number of Kit replicas (each serves one streaming session)
+  replicaCount: 1
+
+  image:
+    # -- Kit container image repository
+    repository: dsx-kit
+    # -- Image pull policy
+    pullPolicy: IfNotPresent
+    # -- Image tag (defaults to Chart appVersion)
+    tag: ""
+
+  # -- Annotations to add to the kit statefulset pods
+  podAnnotations: {}
+
+  # -- Additional labels to add to the kit statefulset pods
+  podLabels: {}
+
+  # -- Node selector for kit pods (typically GPU nodes)
+  nodeSelector: {}
+  #   nvidia.com/gpu.present: "true"
+
+  # -- Tolerations for kit pods (e.g., GPU node taints)
+  tolerations: []
+  #   - key: nvidia.com/gpu
+  #     operator: Exists
+  #     effect: NoSchedule
+
+  # -- Affinity rules for kit pods
+  affinity: {}
+
+  # -- Resource requests and limits for kit containers
+  resources:
+    requests:
+      cpu: "2"
+      memory: 4Gi
+      ephemeral-storage: 1Gi
+      nvidia.com/gpu: "1"
+    limits:
+      cpu: "4"
+      memory: 16Gi
+      ephemeral-storage: 4Gi
+      nvidia.com/gpu: "1"
+
+  # -- Security context for the kit pod
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+    runAsGroup: 1000
+    fsGroup: 1000
+    seccompProfile:
+      type: RuntimeDefault
+
+  # -- Security context for the kit container
+  securityContext:
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: false
+    runAsNonRoot: true
+    runAsUser: 1000
+    runAsGroup: 1000
+    capabilities:
+      drop:
+        - ALL
+
+  # -- Kit service configuration
+  service:
+    type: ClusterIP
+    annotations: {}
+
+  # -- DSX Agent HTTP API port (chat, health, streaming)
+  agentPort: 8012
+
+  # -- Environment variables for Kit (non-sensitive)
+  config:
+    # -- User ID for the streaming session
+    userId: ""
+    # -- Nucleus server address
+    nucleusServer: ""
+    # -- Additional Kit command-line arguments
+    kitArgs: ""
+    # -- Debug verbosity (0 or 1)
+    kitVerbose: "0"
+
+  # -- Liveness probe configuration
+  livenessProbe:
+    httpGet:
+      path: /v1/streaming/ready
+      port: health
+    initialDelaySeconds: 60
+    periodSeconds: 30
+    timeoutSeconds: 10
+    failureThreshold: 5
+
+  # -- Readiness probe configuration
+  readinessProbe:
+    httpGet:
+      path: /v1/streaming/ready
+      port: health
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 10
+    failureThreshold: 5
+
+  # -- Startup probe configuration (Kit needs time for GPU init + shader compilation)
+  startupProbe:
+    httpGet:
+      path: /v1/streaming/ready
+      port: health
+    initialDelaySeconds: 10
+    periodSeconds: 10
+    timeoutSeconds: 10
+    failureThreshold: 30
+
+  # -- Persistent volume configuration for Kit caches
+  persistence:
+    ovCache:
+      enabled: true
+      storageClass: ""
+      accessModes:
+        - ReadWriteOnce
+      size: 50Gi
+
+    ovLocalShare:
+      enabled: true
+      storageClass: ""
+      accessModes:
+        - ReadWriteOnce
+      size: 20Gi
+
+# =============================================================================
+# Ingress Configuration
+# =============================================================================
+ingress:
+  enabled: false
+  className: "nginx"
+  annotations: {}
+  #   cert-manager.io/cluster-issuer: letsencrypt-prod
+  #   nginx.ingress.kubernetes.io/ssl-redirect: "true"
+  #   nginx.ingress.kubernetes.io/proxy-body-size: "32m"
+  host: "dsx.example.com"
+  tls:
+    enabled: false
+    secretName: "dsx-tls"
+  extraPaths: []
+
+# =============================================================================
+# Service Account Configuration
+# =============================================================================
+serviceAccount:
+  create: true
+  name: ""
+  annotations: {}
+  automountServiceAccountToken: false
+
+# =============================================================================
+# Network Policy Configuration
+# =============================================================================
+networkPolicy:
+  enabled: true
+
+# =============================================================================
+# Resource Quota Configuration
+# =============================================================================
+resourceQuota:
+  # -- Enable namespace-level resource quotas
+  enabled: false
+  # -- Hard limits on total resource consumption within the namespace
+  hard:
+    requests.cpu: "10"
+    requests.memory: 20Gi
+    requests.ephemeral-storage: 10Gi
+    requests.nvidia.com/gpu: "4"
+    limits.cpu: "20"
+    limits.memory: 80Gi
+    limits.ephemeral-storage: 20Gi
+    limits.nvidia.com/gpu: "4"
+    persistentvolumeclaims: "10"
+    requests.storage: 200Gi
+    pods: "20"
+
+# =============================================================================
+# Limit Range Configuration
+# =============================================================================
+limitRange:
+  # -- Enable per-container/per-PVC limit ranges
+  enabled: false
+  # -- Container-level limits (applies to each individual container)
+  container:
+    default:
+      cpu: 500m
+      memory: 512Mi
+      ephemeral-storage: 512Mi
+    defaultRequest:
+      cpu: 100m
+      memory: 256Mi
+      ephemeral-storage: 128Mi
+    max:
+      cpu: "8"
+      memory: 32Gi
+      ephemeral-storage: 8Gi
+      nvidia.com/gpu: "1"
+    min:
+      cpu: 50m
+      memory: 64Mi
+      ephemeral-storage: 32Mi
+  # -- PVC-level limits (applies to each individual PersistentVolumeClaim)
+  pvc:
+    max:
+      storage: 100Gi
+    min:
+      storage: 1Gi
+
+# =============================================================================
+# Secrets Configuration
+# =============================================================================
+# WARNING: Do NOT commit real secret values to source control.
+# Provide via --set or use secrets.existingSecret for external secret management.
+secrets:
+  nvcfApiKey: ""
+  sqlHost: ""
+  sqlDatabase: ""
+  sqlUser: ""
+  sqlPassword: ""
+  # -- Reference an existing Secret instead of creating one
+  existingSecret: ""

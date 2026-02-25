@@ -1,0 +1,133 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "dsx.web.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "dsx.web.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.web.autoscaling.enabled }}
+  replicas: {{ .Values.web.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "dsx.web.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/web-configmap.yaml") . | sha256sum }}
+        checksum/secret: {{ include (print $.Template.BasePath "/secrets.yaml") . | sha256sum }}
+        {{- with .Values.web.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        {{- include "dsx.web.labels" . | nindent 8 }}
+        {{- with .Values.web.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- with .Values.global.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "dsx.serviceAccountName" . }}
+      automountServiceAccountToken: false
+      securityContext:
+        {{- toYaml .Values.web.podSecurityContext | nindent 8 }}
+      containers:
+        - name: web
+          image: {{ include "dsx.web.image" . }}
+          imagePullPolicy: {{ .Values.web.image.pullPolicy }}
+          securityContext:
+            {{- toYaml .Values.web.securityContext | nindent 12 }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.web.service.targetPort }}
+              protocol: TCP
+          env:
+            - name: AUTH_AUTHORITY
+              value: {{ .Values.web.config.authAuthority | quote }}
+            - name: AUTH_CLIENT_ID
+              value: {{ .Values.web.config.authClientId | quote }}
+            - name: AUTH_REDIRECT_URI
+              value: {{ .Values.web.config.authRedirectUri | quote }}
+            - name: AUTH_METADATA_URI
+              value: {{ .Values.web.config.authMetadataUri | quote }}
+            - name: AUTH_SCOPE
+              value: {{ .Values.web.config.authScope | quote }}
+            - name: BACKEND_URL
+              value: {{ .Values.web.config.backendUrl | quote }}
+            - name: NUCLEUS_URL
+              value: {{ .Values.web.config.nucleusUrl | quote }}
+            - name: ADMIN_GROUP_ID
+              value: {{ .Values.web.config.adminGroupId | quote }}
+            - name: USER_GROUP_ID
+              value: {{ .Values.web.config.userGroupId | quote }}
+            {{- if .Values.web.config.viteChatApiUrl }}
+            - name: VITE_CHAT_API_URL
+              value: {{ .Values.web.config.viteChatApiUrl | quote }}
+            {{- end }}
+            - name: NVCF_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "dsx.secretName" . }}
+                  key: nvcf-api-key
+                  optional: true
+            - name: SQL_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "dsx.secretName" . }}
+                  key: sql-host
+                  optional: true
+            - name: SQL_DATABASE
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "dsx.secretName" . }}
+                  key: sql-database
+                  optional: true
+            - name: SQL_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "dsx.secretName" . }}
+                  key: sql-user
+                  optional: true
+            - name: SQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "dsx.secretName" . }}
+                  key: sql-password
+                  optional: true
+          livenessProbe:
+            {{- toYaml .Values.web.livenessProbe | nindent 12 }}
+          readinessProbe:
+            {{- toYaml .Values.web.readinessProbe | nindent 12 }}
+          startupProbe:
+            {{- toYaml .Values.web.startupProbe | nindent 12 }}
+          resources:
+            {{- toYaml .Values.web.resources | nindent 12 }}
+          volumeMounts:
+            - name: config-template
+              mountPath: /app/dist/config/main.json.template
+              subPath: main.json.template
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: config-template
+          configMap:
+            name: {{ include "dsx.web.fullname" . }}-config
+        - name: tmp
+          emptyDir:
+            sizeLimit: 64Mi
+      {{- with .Values.web.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.web.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.web.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

@@ -1,0 +1,28 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "dsx.web.fullname" . }}-config
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "dsx.web.labels" . | nindent 4 }}
+data:
+  # main.json.template -- envsubst replaces ${VAR} placeholders at container startup
+  main.json.template: |
+    {
+      "auth": {
+        "authority": "${AUTH_AUTHORITY}",
+        "clientId": "${AUTH_CLIENT_ID}",
+        "redirectUri": "${AUTH_REDIRECT_URI}",
+        "metadataUri": "${AUTH_METADATA_URI}",
+        "scope": "${AUTH_SCOPE}"
+      },
+      "endpoints": {
+        "backend": "${BACKEND_URL}",
+        "nucleus": "${NUCLEUS_URL}"
+      },
+      "sessions": {
+        "maxTtl": 28800,
+        "sessionEndNotificationTime": 600,
+        "sessionEndNotificationDuration": 30
+      }
+    }

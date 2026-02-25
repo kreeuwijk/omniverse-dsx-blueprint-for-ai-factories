@@ -1,0 +1,120 @@
+{{- if .Values.networkPolicy.enabled }}
+---
+# Web UI network policy:
+# Ingress: allow HTTP on port 8080 from any source (ingress controller)
+# Egress: DNS, HTTPS (auth providers/APIs), and Kit pods (signaling)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "dsx.web.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "dsx.web.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "dsx.web.selectorLabels" . | nindent 6 }}
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - ports:
+        - port: {{ .Values.web.service.targetPort }}
+          protocol: TCP
+  egress:
+    # DNS resolution
+    - ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+    # HTTPS outbound (auth providers, external APIs)
+    - ports:
+        - port: 443
+          protocol: TCP
+        - port: 80
+          protocol: TCP
+    # Communication to Kit pods (signaling + health)
+    - to:
+        - podSelector:
+            matchLabels:
+              {{- include "dsx.kit.selectorLabels" . | nindent 14 }}
+      ports:
+        - port: 49100
+          protocol: TCP
+        - port: 8111
+          protocol: TCP
+        - port: {{ .Values.kit.agentPort | default 8012 }}
+          protocol: TCP
+---
+# Kit application network policy:
+# Ingress: signaling/health from web pods, streaming ports for WebRTC media
+# Egress: DNS, HTTPS (Nucleus, registries), Omniverse protocol, STUN/TURN
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "dsx.kit.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "dsx.kit.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "dsx.kit.selectorLabels" . | nindent 6 }}
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    # Signaling and health from web pods
+    - from:
+        - podSelector:
+            matchLabels:
+              {{- include "dsx.web.selectorLabels" . | nindent 14 }}
+      ports:
+        - port: 49100
+          protocol: TCP
+        - port: 8111
+          protocol: TCP
+        - port: {{ .Values.kit.agentPort | default 8012 }}
+          protocol: TCP
+    # WebRTC streaming data (47995-48012, 49000-49007) from any source
+    # These ports receive media from TURN servers or direct browser connections
+    - ports:
+        {{- range $i := untilStep 47995 48013 1 }}
+        - port: {{ $i }}
+          protocol: TCP
+        - port: {{ $i }}
+          protocol: UDP
+        {{- end }}
+        {{- range $i := untilStep 49000 49008 1 }}
+        - port: {{ $i }}
+          protocol: TCP
+        - port: {{ $i }}
+          protocol: UDP
+        {{- end }}
+  egress:
+    # DNS resolution
+    - ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+    # HTTPS outbound (Nucleus, extension registries, license servers)
+    - ports:
+        - port: 443
+          protocol: TCP
+        - port: 80
+          protocol: TCP
+    # Omniverse Nucleus protocol
+    - ports:
+        - port: 3009
+          protocol: TCP
+        - port: 3030
+          protocol: TCP
+    # STUN/TURN for WebRTC NAT traversal
+    - ports:
+        - port: 3478
+          protocol: UDP
+        - port: 3478
+          protocol: TCP
+{{- end }}
