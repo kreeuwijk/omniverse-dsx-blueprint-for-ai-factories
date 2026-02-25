@@ -1,0 +1,404 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Build",
+            "dependsOn": [
+                "kit build",
+                "web build"
+            ],
+            "problemMatcher": [],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            }
+        },
+        {
+            "label": "Run",
+            "detail": "Run Kit (streaming) and Web frontend together",
+            "dependsOn": [
+                "kit run streaming",
+                "web run"
+            ],
+            "problemMatcher": []
+        },
+        {
+            "label": "Run (Local Only)",
+            "detail": "Run Kit (local viewer) without streaming",
+            "dependsOn": [
+                "kit run local"
+            ],
+            "problemMatcher": []
+        },
+        {
+            "label": "Run Web Only",
+            "detail": "Run only the web frontend (for UI development)",
+            "dependsOn": [
+                "web run"
+            ],
+            "problemMatcher": []
+        },
+        {
+            "label": "Run Backend",
+            "detail": "Run the FastAPI backend server",
+            "dependsOn": [
+                "backend run"
+            ],
+            "problemMatcher": []
+        },
+        {
+            "label": "Clean",
+            "dependsOn": [
+                "cae clean",
+                "kit clean"
+            ],
+            "problemMatcher": []
+        },
+        {
+            "label": "Test",
+            "command": "./repo.sh",
+            "args": [
+                "test"
+            ],
+            "windows": {
+                "command": "repo.bat"
+            },
+            "group": "test"
+        },
+        {
+            "label": "kit build",
+            "dependsOrder": "sequence",
+            "dependsOn": [
+                "__cae_submodule",
+                "__cae_schema",
+                "__cae_build",
+                "__dsx_precache",
+                "__dsx_build"
+            ],
+            "group": "build",
+            "problemMatcher": []
+        },
+        {
+            "label": "web build",
+            "dependsOrder": "sequence",
+            "dependsOn": [
+                "__npm_install",
+                "__npm_build"
+            ],
+            "group": "build",
+            "problemMatcher": []
+        },
+        {
+            "label": "cae clean",
+            "dependsOrder": "sequence",
+            "dependsOn": [
+                "__cae_clean",
+                "__cae_restore"
+            ],
+            "problemMatcher": []
+        },
+        {
+            "label": "kit run streaming",
+            "detail": "Run Kit with streaming enabled (for web connection)",
+            "command": "./repo.sh",
+            "args": [
+                "launch",
+                "dsx_streaming.kit",
+                "--",
+                "--no-window",
+                "--/app/enableDeveloperWarnings=0",
+            ],
+            "windows": {
+                "command": "repo.bat"
+            },
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "group": "run"
+            },
+            "isBackground": true
+        },
+        {
+            "label": "kit run local",
+            "detail": "Run Kit locally with window (no streaming)",
+            "command": "./repo.sh",
+            "args": [
+                "launch",
+                "dsx.kit"
+            ],
+            "windows": {
+                "command": "repo.bat"
+            },
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "group": "run"
+            },
+            "isBackground": true
+        },
+        {
+            "label": "kit clean",
+            "command": "git",
+            "args": [
+                "clean",
+                "-fdx",
+                "-e",
+                "web/node_modules",
+                "-e",
+                "backend/.venv",
+                "-e",
+                ".vscode",
+                "-e",
+                "vendor"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": [],
+            "presentation": {
+                "revealProblems": "onProblem",
+                "group": "clean"
+            }
+        },
+        {
+            "label": "web run",
+            "command": "npm",
+            "args": [
+                "run",
+                "dev",
+                "--",
+                "--host",
+                "0.0.0.0"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/web"
+            },
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "group": "run"
+            },
+            "isBackground": true
+        },
+        {
+            "label": "__cae_submodule",
+            "command": "git",
+            "args": [
+                "submodule",
+                "update",
+                "--init",
+                "--recursive"
+            ],
+            "problemMatcher": [],
+            "presentation": {
+                "revealProblems": "onProblem",
+                "close": true,
+                "group": "build"
+            },
+            "group": "build"
+        },
+        {
+            "label": "__cae_schema",
+            "command": "./repo.sh",
+            "windows": {
+                "command": "repo.bat"
+            },
+            "args": [
+                "schema"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/deps/kit-cae"
+            },
+            "problemMatcher": [],
+            "presentation": {
+                "revealProblems": "onProblem",
+                "close": true,
+                "group": "build"
+            },
+            "group": "build"
+        },
+        {
+            "label": "__cae_build",
+            "command": "./repo.sh",
+            "windows": {
+                "command": "repo.bat"
+            },
+            "args": [
+                "build"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/deps/kit-cae"
+            },
+            "problemMatcher": [],
+            "presentation": {
+                "revealProblems": "onProblem",
+                "close": true,
+                "group": "build"
+            },
+            "group": "build"
+        },
+        {
+            "label": "__cae_clean",
+            "command": "git",
+            "args": [
+                "clean",
+                "-fdx"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/deps/kit-cae"
+            },
+            "problemMatcher": [],
+            "presentation": {
+                "revealProblems": "onProblem",
+                "close": true,
+                "group": "clean"
+            }
+        },
+        {
+            "label": "__cae_restore",
+            "command": "git",
+            "args": [
+                "restore",
+                "."
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/deps/kit-cae"
+            },
+            "problemMatcher": [],
+            "presentation": {
+                "close": true,
+                "group": "clean"
+            }
+        },
+        {
+            "label": "__dsx_precache",
+            "command": "./repo.sh",
+            "windows": {
+                "command": "repo.bat"
+            },
+            "args": [
+                "build",
+                "-u"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": [],
+            "presentation": {
+                "revealProblems": "onProblem",
+                "close": true,
+                "group": "build"
+            },
+            "group": "build"
+        },
+        {
+            "label": "__dsx_build",
+            "command": "./repo.sh",
+            "windows": {
+                "command": "repo.bat"
+            },
+            "args": [
+                "build",
+                "-r"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": [],
+            "presentation": {
+                "revealProblems": "onProblem",
+                "close": true,
+                "group": "build"
+            },
+            "group": "build"
+        },
+        {
+            "label": "__npm_install",
+            "command": "npm",
+            "args": [
+                "install"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/web"
+            },
+            "problemMatcher": [],
+            "presentation": {
+                "revealProblems": "onProblem",
+                "close": true,
+                "group": "build"
+            },
+            "group": "build"
+        },
+        {
+            "label": "__npm_build",
+            "command": "npm",
+            "args": [
+                "run",
+                "build"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/web"
+            },
+            "problemMatcher": [],
+            "presentation": {
+                "revealProblems": "onProblem",
+                "close": true,
+                "group": "build"
+            },
+            "group": "build"
+        },
+        {
+            "label": "backend run",
+            "command": "poetry",
+            "args": [
+                "run",
+                "api"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/backend"
+            },
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "group": "run"
+            },
+            "isBackground": true
+        },
+        {
+            "label": "backend install",
+            "command": "poetry",
+            "args": [
+                "install"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/backend"
+            },
+            "problemMatcher": [],
+            "presentation": {
+                "revealProblems": "onProblem",
+                "group": "build"
+            }
+        },
+        {
+            "label": "backend migrations",
+            "command": "poetry",
+            "args": [
+                "run",
+                "migrations"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}/backend"
+            },
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always"
+            }
+        }
+    ]
+}

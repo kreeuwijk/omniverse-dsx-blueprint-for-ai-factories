@@ -1,0 +1,59 @@
+=============================================================================
+  DSX - NVIDIA Omniverse Cloud Streaming Platform
+  Chart Version: {{ .Chart.Version }}
+  App Version:   {{ .Chart.AppVersion }}
+=============================================================================
+
+Deployment Summary:
+-------------------
+
+1. Web UI (Frontend):
+   - Deployment: {{ include "dsx.web.fullname" . }}
+   - Replicas:   {{ .Values.web.replicaCount }}
+   - Service:    {{ include "dsx.web.fullname" . }}:{{ .Values.web.service.port }}
+
+2. Kit Application (GPU Streaming Server):
+   - StatefulSet: {{ include "dsx.kit.fullname" . }}
+   - Replicas:    {{ .Values.kit.replicaCount }}
+   - GPU:         {{ index .Values.kit.resources.requests "nvidia.com/gpu" }} per pod
+
+{{- if .Values.ingress.enabled }}
+
+3. Ingress:
+   - Host: {{ .Values.ingress.host }}
+   {{- if .Values.ingress.tls.enabled }}
+   - TLS:  Enabled (secret: {{ .Values.ingress.tls.secretName }})
+   {{- end }}
+{{- end }}
+
+Access the Web UI:
+------------------
+
+{{- if .Values.ingress.enabled }}
+  {{- if .Values.ingress.tls.enabled }}
+  https://{{ .Values.ingress.host }}
+  {{- else }}
+  http://{{ .Values.ingress.host }}
+  {{- end }}
+{{- else }}
+  kubectl port-forward svc/{{ include "dsx.web.fullname" . }} 8080:{{ .Values.web.service.port }} -n {{ .Release.Namespace }}
+  Then open: http://localhost:8080
+{{- end }}
+
+{{- if not .Values.web.config.authAuthority }}
+
+WARNING: Authentication is not configured. Set web.config.authAuthority and
+related auth values for production use.
+{{- end }}
+
+{{- if not .Values.kit.config.nucleusServer }}
+
+WARNING: Nucleus server is not configured for Kit. Set kit.config.nucleusServer
+for USD asset loading.
+{{- end }}
+
+{{- if and (not .Values.secrets.existingSecret) (not .Values.secrets.nvcfApiKey) }}
+
+WARNING: No NVCF API key is configured. Set secrets.nvcfApiKey or provide
+secrets.existingSecret for NVCF integration.
+{{- end }}

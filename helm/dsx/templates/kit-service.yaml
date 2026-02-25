@@ -1,0 +1,52 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "dsx.kit.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "dsx.kit.labels" . | nindent 4 }}
+  {{- with .Values.kit.service.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  type: {{ .Values.kit.service.type }}
+  # Headless service for StatefulSet -- each pod gets a stable DNS name
+  clusterIP: None
+  selector:
+    {{- include "dsx.kit.selectorLabels" . | nindent 4 }}
+  ports:
+    - name: signaling
+      port: 49100
+      targetPort: signaling
+      protocol: TCP
+    - name: health
+      port: 8111
+      targetPort: health
+      protocol: TCP
+    - name: control
+      port: {{ .Values.kit.agentPort | default 8012 }}
+      targetPort: control
+      protocol: TCP
+    # Streaming data ports (47995-48012) -- TCP and UDP
+    {{- range $i := untilStep 47995 48013 1 }}
+    - name: stream-{{ sub $i 47995 }}-tcp
+      port: {{ $i }}
+      targetPort: {{ $i }}
+      protocol: TCP
+    - name: stream-{{ sub $i 47995 }}-udp
+      port: {{ $i }}
+      targetPort: {{ $i }}
+      protocol: UDP
+    {{- end }}
+    # Additional streaming ports (49000-49007) -- TCP and UDP
+    {{- range $i := untilStep 49000 49008 1 }}
+    - name: stream-x-{{ sub $i 49000 }}-tcp
+      port: {{ $i }}
+      targetPort: {{ $i }}
+      protocol: TCP
+    - name: stream-x-{{ sub $i 49000 }}-udp
+      port: {{ $i }}
+      targetPort: {{ $i }}
+      protocol: UDP
+    {{- end }}

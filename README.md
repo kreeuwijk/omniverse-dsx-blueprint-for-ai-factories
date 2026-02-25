@@ -1,37 +1,356 @@
-<h2><img align="center" src="https://github.com/user-attachments/assets/cbe0d62f-c856-4e0b-b3ee-6184b7c4d96f">NVIDIA AI Blueprint: Blueprint Name</h2>
+# DSX - Omniverse Cloud Streaming Platform
 
-[//]: # (Brief blueprint positioning from messaging document)
+## Overview
 
-> ⚠️ **Third-Party Software Notice**  
-> This project will download and install additional third-party open source software projects.  
-> Please review the license terms of these open source projects before use.
+DSX is a complete cloud streaming platform for NVIDIA Omniverse applications, combining GPU-accelerated 3D rendering with a modern web interface. Built on the NVIDIA Omniverse Kit SDK, DSX provides a production-ready solution for streaming high-performance OpenUSD-based applications directly to web browsers.
 
-[//]: # (Get developer into the code quickly) 
-### Quickstart
-- Deployment Instructions
-- Validation of Setup - sample input/output
+### Platform Components
 
-[//]: # (Provide architecture, software componnents, hardware requirements, link to API spec) 
-### Overview
-- Technical Diagram (created in draw.io)
+The platform consists of two integrated systems:
 
-#### Software Components
-- List of NIMs and other software
+1. **Omniverse Kit Application** - GPU-accelerated 3D rendering engine built on the Omniverse Kit SDK
+2. **Web Portal** - React frontend for user interaction and session management
 
-#### Hardware Requirements
-GPU, CPU, system memory, disk space
+### How It Works
 
-#### API Definition
+- Web Portal manages user authentication and launches Kit application containers on NVIDIA Cloud Functions (NVCF)
+- Kit Application renders 3D USD scenes with GPU acceleration and streams via WebRTC
+- Users interact through their browser, with commands sent in real-time to the Kit application
+- Administrative panel provides monitoring and control over active user sessions
 
-[//]: # (Detailed deployment steps) 
-### Deployment
+See [ARCHITECTURE.md](ARCHITECTURE.md) for detailed system design.
 
-#### Prerequisites
-- NVAIE developer license
-- API Key
+## Table of Contents
 
-[//]: # (Detailed customization steps) 
-### Customization
+- [Overview](#overview)
+- [Prerequisites and Environment Setup](#prerequisites-and-environment-setup)
+- [Repository Structure](#repository-structure)
+- [Quick Start](#quick-start)
+  - [Kit Application Setup](#kit-application-setup)
+  - [Web Portal Setup](#web-portal-setup)
+- [About the Omniverse Kit SDK](#about-the-omniverse-kit-sdk)
+- [DSX Applications](#dsx-applications)
+- [Application Streaming](#application-streaming)
+- [Deployment](#deployment)
+- [Tools](#tools)
+- [Governing Terms](#governing-terms)
+- [Data Collection](#data-collection)
+- [Additional Resources](#additional-resources)
+- [Contributing](#contributing)
 
+---
 
-This project will download and install additional third-party open source software projects. Review the license terms of these open source projects before use.
+## Prerequisites and Environment Setup
+
+Ensure your system meets the following requirements:
+
+### System Requirements
+
+- **Operating System**: Windows 10/11 or Linux (Ubuntu 22.04 or newer)
+- **GPU**: NVIDIA RTX capable GPU (RTX 3070 or better recommended)
+- **Driver**: Minimum version 537.58 (newer versions may work but are not equally validated)
+- **Internet Access**: Required for downloading the Omniverse Kit SDK, extensions, and tools
+
+### Required Software Dependencies
+
+#### Core Tools
+- [**Git**](https://git-scm.com/downloads): For version control and repository management
+- [**Git LFS**](https://git-lfs.com/): For managing large files within the repository
+
+#### Kit Application Development (C++)
+- **(Windows) Microsoft Visual Studio (2019 or 2022)**: Install from [Visual Studio Downloads](https://visualstudio.microsoft.com/downloads/). Ensure **Desktop development with C++** workload is selected. [Additional configuration details](readme-assets/additional-docs/windows_developer_configuration.md)
+- **(Windows) Windows SDK**: Install alongside MSVC via Visual Studio Installer
+- **(Linux) build-essentials**: Install with `sudo apt-get install build-essential`
+
+#### Web Portal Development
+- **Node.js and npm**: For frontend development
+
+### Recommended Software
+
+- [**(Linux) Docker**](https://docs.docker.com/engine/install/ubuntu/): For containerized development and deployment. **Ensure non-root users have Docker permissions.**
+- [**(Linux) NVIDIA Container Toolkit**](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html): For GPU-accelerated containerized development and deployment
+- [**VSCode**](https://code.visualstudio.com/download) (or your preferred IDE): For code editing and development
+
+---
+
+## Repository Structure
+
+| Directory Item   | Purpose                                                    |
+|------------------|------------------------------------------------------------|
+| source/          | Kit applications and extensions source code                |
+| web/             | React frontend for web portal                              |
+| deps/            | Git submodules (kit-usd-agents)                            |
+| templates/       | Template applications and extensions                       |
+| helm/            | Kubernetes Helm charts for deployment                      |
+| tools/           | Tooling settings and repository-specific tools             |
+| readme-assets/   | Images and additional repository documentation             |
+| .vscode/         | VS Code configuration and helper tasks                     |
+| premake5.lua     | Build configuration for Kit applications                   |
+| repo.sh / .bat   | Repository tool entry points (Linux/Windows)               |
+| repo.toml        | Top level configuration of repo tools                      |
+| ARCHITECTURE.md  | System architecture documentation                          |
+
+---
+
+## Quick Start
+
+DSX provides convenient scripts to get up and running quickly. You'll need two terminal windows: one for the Kit application (streaming server) and one for the web frontend.
+
+### 1. Clone the Repository
+
+```bash
+git clone <repository-url>
+cd dsx
+```
+
+**First-time build:** The Kit application depends on the `deps/kit-cae` and `deps/kit-usd-agents` submodules. Both `./run_streaming.sh` and `./repo.sh build` automatically initialize submodules and build kit-cae on first run.
+
+### 2. Set Environment Variables (Optional)
+
+The AI agent extension (`omni.ai.aiq.dsx`) requires an NVIDIA API key to communicate with the LLM backend. **The rest of the demo (3D viewer, camera controls, configurator) works without it.** If you want to use the AI chat agent, obtain a key from [build.nvidia.com](https://build.nvidia.com/) and set it as a persistent environment variable:
+
+**Linux:**
+```bash
+echo 'export NVIDIA_API_KEY="nvapi-..."' >> ~/.bashrc
+source ~/.bashrc
+```
+
+**Windows (PowerShell — run once):**
+```powershell
+[System.Environment]::SetEnvironmentVariable("NVIDIA_API_KEY", "nvapi-...", "User")
+```
+
+> **NOTE:** Restart your terminal after setting the variable. If `NVIDIA_API_KEY` is not set, the chat panel will display a message explaining how to enable the AI agent.
+
+### 3. Start the Kit Application (Terminal 1)
+
+The `run_streaming` script will build (if needed) and launch the Kit application with streaming enabled.
+
+**Linux:**
+```bash
+./run_streaming.sh
+```
+
+**Windows:**
+```powershell
+.\run_streaming.bat
+```
+
+> **NOTE:** Initial startup may take 5-8 minutes for shader compilation. Subsequent launches will be much faster.
+
+### 4. Start the Web Frontend (Terminal 2)
+
+The `run_web` script will install dependencies and start the development server.
+
+**Linux:**
+```bash
+./run_web.sh
+```
+
+**Windows:**
+```powershell
+.\run_web.bat
+```
+
+When the server starts, it will display a list of URLs. Select the third option (the streaming-related URL) to connect to the Kit application.
+
+### Configuration Options
+
+The streaming connection can be configured via URL query parameters or environment variables:
+
+| Parameter | Env Variable | Default | Description |
+|-----------|--------------|---------|-------------|
+| `server` | `VITE_OMNIVERSE_SERVER` | `localhost` | Kit server address |
+| `signalingPort` | `VITE_SIGNALING_PORT` | `49100` | Signaling port |
+| `width` | - | `1920` | Stream width |
+| `height` | - | `1080` | Stream height |
+| `fps` | - | `60` | Target frame rate |
+
+Example: `http://localhost:8080?server=192.168.1.100&width=1280&height=720`
+
+If you experience build issues, see the [Usage and Troubleshooting](readme-assets/additional-docs/usage_and_troubleshooting.md) guide
+
+---
+
+## About the Omniverse Kit SDK
+
+The Omniverse Kit SDK enables developers to build immersive, GPU-accelerated 3D applications. Key features include:
+
+- **Language Support:** Develop with either Python or C++, offering flexibility for various developer preferences
+- **OpenUSD Foundation:** Utilize the robust Open Universal Scene Description (OpenUSD) for creating, manipulating, and rendering rich 3D content
+- **GPU Acceleration:** Leverage GPU-accelerated capabilities for high-fidelity visualization and simulation
+- **Extensibility:** Create specialized extensions with dynamic user interfaces, system integrations, and direct control over OpenUSD data
+
+### Applications and Use Cases
+
+DSX provides a production-ready platform for streaming 3D content and applications. Use cases include:
+
+- Streaming interactive 3D product configurators to customers
+- Providing browser-based access to large-scale 3D models and simulations
+- Delivering collaborative 3D design review tools
+- Creating web-based digital twin viewers
+- Building cloud-native 3D visualization portals
+
+### Learning Resources
+
+#### For New Developers
+**[Developing an Omniverse Kit-Based Application](https://learn.nvidia.com/courses/course-detail?course_id=course-v1:DLI+S-OV-11+V1)**: NVIDIA DLI course offering an accessible introduction to application development (account and login required)
+
+#### For Advanced Understanding
+**[Explore the Kit SDK Companion Tutorial](https://docs.omniverse.nvidia.com/kit/docs/kit-app-template/latest/docs/intro.html)**: Detailed insights into the underlying structure and mechanisms of the Kit SDK
+
+---
+
+## DSX Applications
+
+DSX includes three pre-configured Omniverse Kit applications optimized for USD viewing and streaming:
+
+### dsx.kit (Local Development)
+
+A viewport-focused USD viewer application designed for local development and testing:
+
+- Optimized for real-time 3D visualization
+- Direct OpenUSD scene loading and manipulation
+- Runs with a window for direct interaction
+- Located at: `source/apps/dsx.kit`
+
+### dsx_streaming.kit (Local Streaming)
+
+The local streaming version for direct web browser connection:
+
+- WebRTC streaming via `omni.kit.livestream.app`
+- Runs headless (no window) - view in browser
+- Direct connection without NVCF
+- Ideal for local development with web UI
+- Located at: `source/apps/dsx_streaming.kit`
+
+### dsx_nvcf.kit (Cloud Deployment)
+
+The cloud-optimized version configured for deployment on NVIDIA Cloud Functions:
+
+- WebRTC streaming capabilities for browser access
+- Optimized for containerized deployment
+- Session management and multi-user support
+- Located at: `source/apps/dsx_nvcf.kit`
+
+### Custom Extensions
+
+DSX includes custom extensions that enhance the viewer functionality:
+
+- **dsx.setup_extension**: Application initialization and configuration
+- **dsx.messaging_extension**: Real-time messaging and stage management for web portal integration
+- **omni.ai.aiq.dsx**: AI agent for natural-language datacenter navigation, component visibility control, and rack variant switching. Requires `NVIDIA_API_KEY` environment variable (see [Quick Start](#quick-start)). Exposes an HTTP API on port 8012 (configurable via `DSX_AGENT_PORT` env var) for chat integration.
+
+These extensions are located in `source/extensions/` and provide the foundation for web portal communication and scene management.
+
+---
+
+## Application Streaming
+
+The Omniverse Platform supports streaming Kit-based applications directly to web browsers. You can either manage your own deployment or use an NVIDIA-managed service:
+
+### Self-Managed
+- **Omniverse Kit App Streaming**: Reference implementation on GPU-enabled Kubernetes clusters for complete control over infrastructure and scalability
+
+### NVIDIA-Managed
+- **NVIDIA Cloud Functions (NVCF)**: Offloads hardware, streaming, and network complexities for secure, large-scale deployments
+- **Graphics Delivery Network (GDN)**: Streams high-fidelity 3D content worldwide with just a shared URL
+
+[Configuring and packaging streaming-ready Kit applications](readme-assets/additional-docs/kit_app_streaming_config.md)
+
+---
+
+## Deployment
+
+### Kit Application Deployment
+
+Deploy the `dsx_nvcf.kit` application to NVIDIA Cloud Functions (NVCF) for GPU-accelerated container hosting:
+
+```bash
+# Package the application for cloud deployment
+./repo.sh package_container
+
+# Push container to registry
+
+./repo.sh ngc push-container jacobs-usd_viewer_nvcf:latest --target-name jacobs-usd_viewer_nvcf
+
+# Deploy to NVCF (requires NVCF configuration)
+# See NVCF documentation for deployment steps
+```
+
+Alternatively, deploy to your own Kubernetes cluster using the provided Helm charts in the `helm/web-streaming-example/` directory.
+
+The NVCF-specific kit file (`dsx_nvcf.kit`) includes optimizations for:
+- Container startup and initialization
+- WebRTC streaming configuration
+- Resource management for cloud environments
+- Session handling and cleanup
+
+### Web Portal Deployment
+
+The web portal can be deployed to any cloud provider supporting Node.js:
+
+```bash
+cd web
+npm run build
+# Deploy the dist/ folder to your static hosting service
+```
+
+---
+
+## Tools
+
+The Kit SDK includes a suite of tools to aid in development, testing, and deployment. For detailed information, see the [Kit SDK Tooling Guide](readme-assets/additional-docs/kit_app_template_tooling_guide.md).
+
+### Building from a fresh checkout
+
+A single command builds everything from a clean clone:
+
+```bash
+./repo.sh build        # Linux
+.\repo.bat build       # Windows
+```
+
+The build system automatically initializes submodules, builds kit-cae (USD schemas + extensions), resolves/caches all extension dependencies, and compiles the DSX application. The first build may take several minutes as it downloads the Kit SDK and builds kit-cae.
+
+For incremental builds after the first build, use the same command — it only rebuilds what changed. To force a rebuild of submodule dependencies (e.g. after updating kit-cae or kit-usd-agents), use `./repo.sh build --rebuild-deps`.
+
+### Key Tools Overview
+
+- **Help**: `./repo.sh -h` or `.\repo.bat -h` - List all available tools and descriptions
+- **Build**: `./repo.sh build` or `.\repo.bat build` - Compile DSX applications and extensions
+- **Launch**: `./repo.sh launch` or `.\repo.bat launch` - Start the Kit application locally
+- **Testing**: `./repo.sh test` or `.\repo.bat test` - Execute test suites for extensions
+- **Packaging**: `./repo.sh package` or `.\repo.bat package` - Package application for cloud deployment
+
+---
+
+## Governing Terms
+
+The software and materials are governed by the [NVIDIA Software License Agreement](https://www.nvidia.com/en-us/agreements/enterprise-software/nvidia-software-license-agreement/) and the [Product-Specific Terms for NVIDIA Omniverse](https://www.nvidia.com/en-us/agreements/enterprise-software/product-specific-terms-for-omniverse/).
+
+---
+
+## Data Collection
+
+The Omniverse Kit SDK collects anonymous usage data to help improve software performance and aid in diagnostic purposes. Rest assured, no personal information such as user email, name or any other field is collected.
+
+To learn more about what data is collected, how we use it, and how you can change the data collection setting, see the [details page](readme-assets/additional-docs/data_collection_and_use.md).
+
+---
+
+## Additional Resources
+
+- [Kit SDK Companion Tutorial](https://docs.omniverse.nvidia.com/kit/docs/kit-app-template/latest/docs/intro.html)
+- [Usage and Troubleshooting](readme-assets/additional-docs/usage_and_troubleshooting.md)
+- [Developer Bundle Extensions](readme-assets/additional-docs/developer_bundle_extensions.md)
+- [Omniverse Kit SDK Manual](https://docs.omniverse.nvidia.com/kit/docs/kit-manual/latest/index.html)
+- [Kit App Streaming Configuration](readme-assets/additional-docs/kit_app_streaming_config.md)
+- [Windows Developer Configuration](readme-assets/additional-docs/windows_developer_configuration.md)
+- [ARCHITECTURE.md](ARCHITECTURE.md) - Detailed system architecture
+
+---
+
+## Contributing
+
+We provide this source code as-is and are currently not accepting outside contributions.
