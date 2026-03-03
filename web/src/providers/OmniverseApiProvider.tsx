@@ -8,13 +8,19 @@
  *   - SDK handles media server resolution internally
  */
 
-import { useEffect, useRef, useState, ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, ReactNode } from "react";
 import {
   OmniverseAPI,
   OmniverseStreamStatus,
   StreamHandlerCallback,
 } from "@/lib/OmniverseApi";
-import { DirectConfig, StreamEvent } from "@nvidia/omniverse-webrtc-streaming-library";
+import { useOVDSXAppConfig, OVDSXStreamConfig } from "@/context/OVDSXAppContext";
+import {
+  DirectConfig,
+  eAction,
+  eStatus,
+  StreamEvent,
+} from "@nvidia/omniverse-webrtc-streaming-library";
 import { OmniverseApiContext } from "@/hooks/useOmniverseApi";
 
 // Default element IDs for the streaming video/audio elements
@@ -61,7 +67,8 @@ function createOmniverseApi(
   onStreamUpdate: StreamHandlerCallback,
   onStreamCustomEvent: (message: unknown) => void,
   onStreamStop: StreamHandlerCallback,
-  onStreamTerminate: StreamHandlerCallback
+  onStreamTerminate: StreamHandlerCallback,
+  streamOverrides: OVDSXStreamConfig
 ): OmniverseAPI {
   const queryParams = new URLSearchParams(window.location.search);
 
@@ -70,18 +77,20 @@ function createOmniverseApi(
   };
 
   // Get streaming configuration from query params or environment variables
-  const server = getParam(
+  const signalingServer = streamOverrides.signalingServer ?? getParam(
     "server",
     import.meta.env.VITE_OMNIVERSE_SERVER || window.location.hostname
   );
   const signalingPort = Number(
+    streamOverrides.signalingPort ??
     getParam("signalingPort", import.meta.env.VITE_SIGNALING_PORT || "49100")
   );
+  const signalingPath = streamOverrides.signalingPath;
   const width = Number(getParam("width", "1920"));
   const height = Number(getParam("height", "1080"));
   const fps = Number(getParam("fps", "60"));
 
-  if (server === "localhost" && window.location.hostname !== "localhost") {
+  if (signalingServer === "localhost" && window.location.hostname !== "localhost") {
     console.warn(
       "[OmniverseAPI] Warning: server=localhost but accessing from",
       window.location.hostname,
@@ -95,8 +104,9 @@ function createOmniverseApi(
   const streamConfig: DirectConfig = {
     videoElementId,
     audioElementId,
-    signalingServer: server,
+    signalingServer,
     signalingPort,
+    signalingPath,
     width,
     height,
     fps,
@@ -111,8 +121,9 @@ function createOmniverseApi(
   };
 
   console.log("[OmniverseAPI] Connecting with config:", {
-    signalingServer: server,
+    signalingServer,
     signalingPort,
+    signalingPath,
     width,
     height,
     fps,
@@ -144,45 +155,46 @@ export const OmniverseApiProvider = ({
   children,
   onStatusChange,
 }: OmniverseApiProviderProps) => {
+  const { stream } = useOVDSXAppConfig();
   const apiInitialized = useRef(false);
   const [api, setApi] = useState<OmniverseAPI | undefined>(undefined);
   const [status, setStatus] = useState(OmniverseStreamStatus.waiting);
 
   // Handle stream status changes
-  const handleStreamStatusChange = (msg: StreamEvent) => {
-    if (msg.action !== "start") {
+  const handleStreamStatusChange = useCallback((msg: StreamEvent) => {
+    if (msg.action !== eAction.start) {
       return;
     }
-    let newStatus = status;
+    let newStatus = OmniverseStreamStatus.waiting;
     switch (msg.status) {
-      case "inProgress": {
+      case eStatus.inProgress: {
         newStatus = OmniverseStreamStatus.connecting;
         break;
       }
-      case "error": {
+      case eStatus.error: {
         newStatus = OmniverseStreamStatus.error;
         break;
       }
-      case "success": {
+      case eStatus.success: {
         newStatus = OmniverseStreamStatus.connected;
         break;
       }
       default:
-        break;
+        return;
     }
     setStatus(newStatus);
     onStatusChange?.(newStatus);
-  };
+  }, [onStatusChange]);
 
-  const onStreamStart: StreamHandlerCallback = (msg) => {
+  const onStreamStart: StreamHandlerCallback = useCallback((msg) => {
     defaultOnStreamStart(msg);
     handleStreamStatusChange(msg);
-  };
+  }, [handleStreamStatusChange]);
 
-  const onStreamUpdate: StreamHandlerCallback = (msg) => {
+  const onStreamUpdate: StreamHandlerCallback = useCallback((msg) => {
     defaultOnStreamUpdate(msg);
     handleStreamStatusChange(msg);
-  };
+  }, [handleStreamStatusChange]);
 
   useEffect(() => {
     // Skip if already initialized
@@ -191,29 +203,26 @@ export const OmniverseApiProvider = ({
     }
     apiInitialized.current = true;
 
-    // Small delay to ensure video element is in DOM
-    const timer = setTimeout(() => {
-      const videoElement = document.getElementById(defaultVideoElementId);
-      if (!videoElement) {
-        console.error("[OmniverseAPI] Video element not found:", defaultVideoElementId);
-        return;
-      }
-      console.log("[OmniverseAPI] Initializing connection...");
+    const videoElement = document.getElementById(defaultVideoElementId);
+    if (!videoElement) {
+      console.error("OVDSK - [OmniverseAPI] Video element not found:", defaultVideoElementId);
+      return;
+    }
+    console.log("[OmniverseAPI] Initializing connection...");
 
-      const newApi = createOmniverseApi(
-        defaultVideoElementId,
-        defaultAudioElementId,
-        onStreamStart,
-        onStreamUpdate,
-        defaultOnStreamCustomEvent,
-        defaultOnStreamStop,
-        defaultOnStreamTerminate
-      );
-      setApi(newApi);
-    }, 100);
+    const newApi = createOmniverseApi(
+      defaultVideoElementId,
+      defaultAudioElementId,
+      onStreamStart,
+      onStreamUpdate,
+      defaultOnStreamCustomEvent,
+      defaultOnStreamStop,
+      defaultOnStreamTerminate,
+      stream
+    );
+    setApi(newApi);
 
-    return () => clearTimeout(timer);
-  }, []);
+  }, [onStreamStart, onStreamUpdate, stream]);
 
   return (
     <OmniverseApiContext.Provider value={{ api, status }}>

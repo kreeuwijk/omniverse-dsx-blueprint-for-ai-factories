@@ -63,8 +63,8 @@ const DS9OverlayLite = () => {
         <ViewConfigsModal />
       </Suspense>
 
-      {/* Map - lazy loaded */}
-      <div className={`${state.activeConfigMode === "site" ? "block" : "hidden"}`}>
+      {/* Map stays mounted so sceneView/webScene refs remain available for ConfiguratorPanel */}
+      <div className={state.activeConfigMode === "site" ? "block" : "hidden"}>
         <Suspense fallback={<MapLoader />}>
           <Map setSceneView={setSceneView} setWebScene={setWebScene} />
         </Suspense>

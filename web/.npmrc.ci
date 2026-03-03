@@ -1,0 +1,7 @@
+@nvidia:registry=https://edge.urm.nvidia.com/artifactory/api/npm/omniverse-client-npm/
+@omniverse:registry=https://edge.urm.nvidia.com/artifactory/api/npm/omniverse-npm/
+registry=https://urm.nvidia.com/artifactory/api/npm/sw-ngc-unified-npm-proxy/
+@nvidia:registry=https://urm.nvidia.com/artifactory/api/npm/sw-pandora-npm-local/
+//urm.nvidia.com/artifactory/api/npm/sw-pandora-npm-local/:_authToken=${SVC_PANDORA_CI_ACCESS_TOKEN}
+//urm.nvidia.com/artifactory/api/npm/sw-pandora-npm-local/:username=svc-pandora-cicd
+//urm.nvidia.com/artifactory/api/npm/sw-pandora-npm-local/:always-auth=true

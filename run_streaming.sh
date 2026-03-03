@@ -39,12 +39,6 @@ if [ ! -d "_build" ]; then
     ./repo.sh build -r
 fi
 
-# Launch Kit with streaming configuration using repo.sh
-echo "Starting Kit with streaming enabled..."
-echo "Loading USD: $USD_URL"
-echo "Connect your web browser to http://localhost:8080?server=localhost"
-echo ""
-
 # Run the streaming version with no window
 ./repo.sh launch dsx_streaming.kit -- \
     --no-window \

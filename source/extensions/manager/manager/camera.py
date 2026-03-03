@@ -5,25 +5,33 @@ from pxr import Usd, UsdGeom, Sdf
 from omni.kit.viewport.utility import get_active_viewport
 
 
-def find_camera_path_by_name(stage: Usd.Stage, name: str) -> Optional[str]:
+def find_camera_path_by_name(stage: Usd.Stage, name: str, camera_map=None) -> Optional[str]:
     """
     Find a camera prim path by name or return the path if already valid.
 
     Args:
         stage: The USD stage to search
         name: Camera name or full path
+        camera_map: Optional dict mapping camera names to paths for fast lookup
 
     Returns:
         Optional[str]: Camera path if found, None otherwise
     """
-    # If it's already a path, validate it
+    if not name:
+        return None
+
+    # Direct path lookup
     if name.startswith("/"):
         prim = stage.GetPrimAtPath(name)
-        if prim and prim.IsValid() and (prim.IsA(UsdGeom.Camera) or prim.GetTypeName() == "Camera"):
+        if prim and prim.IsValid() and prim.IsA(UsdGeom.Camera):
             return name
         return None
 
-    # Search by prim name (type = Camera), first match wins
+    # Use cache if available
+    if camera_map is not None:
+        return camera_map.get(name)
+
+    # Fallback: traverse (original behavior)
     for prim in stage.Traverse():
         if prim.GetName() == name:
             if prim.IsA(UsdGeom.Camera) or prim.GetTypeName() == "Camera":
@@ -32,7 +40,7 @@ def find_camera_path_by_name(stage: Usd.Stage, name: str) -> Optional[str]:
     return None
 
 
-def set_active_camera(stage: Usd.Stage, camera_name_or_path: str):
+def set_active_camera(stage: Usd.Stage, camera_name_or_path: str, camera_map=None):
     """
     Set the active viewport camera.
 
@@ -45,6 +53,7 @@ def set_active_camera(stage: Usd.Stage, camera_name_or_path: str):
     Args:
         stage: The USD stage
         camera_name_or_path: Camera name or full USD path
+        camera_map: Optional dict mapping camera names to paths for fast lookup
 
     Returns:
         bool: True if camera was successfully set, False otherwise
@@ -54,7 +63,7 @@ def set_active_camera(stage: Usd.Stage, camera_name_or_path: str):
         return False
 
     # Find the camera path
-    cam_path = find_camera_path_by_name(stage, camera_name_or_path)
+    cam_path = find_camera_path_by_name(stage, camera_name_or_path, camera_map=camera_map)
     if not cam_path:
         print(f"[camera] Camera not found: {camera_name_or_path}")
         return False
@@ -63,12 +72,6 @@ def set_active_camera(stage: Usd.Stage, camera_name_or_path: str):
     vp = get_active_viewport()
     if not vp:
         print("[camera] No active viewport found.")
-        return False
-
-    # Verify it's a Camera prim (redundant but safe)
-    prim = stage.GetPrimAtPath(cam_path)
-    if not prim or not prim.IsA(UsdGeom.Camera):
-        print(f"[camera] Prim is not a camera: {cam_path}")
         return False
 
     # Switch the active viewport to this camera

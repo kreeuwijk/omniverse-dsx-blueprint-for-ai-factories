@@ -11,3 +11,4 @@
 # run startup tests first
 from .test_app_startup import *
 from .test_app_extensions import *
+from .test_dataset_loading import *

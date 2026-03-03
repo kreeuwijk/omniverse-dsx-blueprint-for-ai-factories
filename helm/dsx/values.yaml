@@ -137,7 +137,9 @@ web:
     minReplicas: 2
     maxReplicas: 10
     targetCPUUtilizationPercentage: 70
-    targetMemoryUtilizationPercentage: 80
+    # targetMemoryUtilizationPercentage is not effective for this workload type
+    # as web frontends have relatively stable memory usage regardless of load
+    # targetMemoryUtilizationPercentage: 80
 
   # -- Pod Disruption Budget for web
   pdb:
@@ -182,7 +184,7 @@ kit:
   resources:
     requests:
       cpu: "2"
-      memory: 4Gi
+      memory: 8Gi
       ephemeral-storage: 1Gi
       nvidia.com/gpu: "1"
     limits:
@@ -248,7 +250,7 @@ kit:
     initialDelaySeconds: 30
     periodSeconds: 10
     timeoutSeconds: 10
-    failureThreshold: 5
+    failureThreshold: 10
 
   # -- Startup probe configuration (Kit needs time for GPU init + shader compilation)
   startupProbe:
@@ -264,14 +266,14 @@ kit:
   persistence:
     ovCache:
       enabled: true
-      storageClass: ""
+      storageClass: ""  # Recommend SSD-backed class (e.g., "premium-rwo") for optimal startup time
       accessModes:
         - ReadWriteOnce
       size: 50Gi
 
     ovLocalShare:
       enabled: true
-      storageClass: ""
+      storageClass: ""  # Recommend SSD-backed class (e.g., "premium-rwo") for optimal startup time
       accessModes:
         - ReadWriteOnce
       size: 20Gi

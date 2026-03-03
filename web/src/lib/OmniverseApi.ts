@@ -39,6 +39,7 @@ export class OmniverseAPI {
   static requestId: number = 0;
   requestResponses: Record<number, OmniverseStreamMessage> = {};
   signalHandlers: Record<string, StreamHandlerCallback> = {};
+  private _activeIntervals: Set<ReturnType<typeof setInterval>> = new Set();
 
   public constructor(streamConfig: DirectConfig) {
     if (import.meta.env.VITE_DISABLE_OMNIVERSE === "true") return;
@@ -100,6 +101,16 @@ export class OmniverseAPI {
   }
 
   /**
+   * Clean up all active polling intervals.
+   */
+  disconnect(): void {
+    for (const intervalId of this._activeIntervals) {
+      clearInterval(intervalId);
+    }
+    this._activeIntervals.clear();
+  }
+
+  /**
    * Send a request to the Kit application and wait for a response.
    */
   async request(
@@ -127,6 +138,7 @@ export class OmniverseAPI {
           const entireResponse = this.requestResponses[id];
           delete this.requestResponses[id];
           clearInterval(checkInterval);
+          this._activeIntervals.delete(checkInterval);
           clearTimeout(timeout);
           const responsePayload = entireResponse["payload"];
           console.log(`[OmniverseAPI] Received response for request ${id}`);
@@ -144,8 +156,11 @@ export class OmniverseAPI {
         }
       }, intervalMs);
 
+      this._activeIntervals.add(checkInterval);
+
       timeout = setTimeout(() => {
         clearInterval(checkInterval);
+        this._activeIntervals.delete(checkInterval);
         reject(
           new Error(`Timeout: Response not received within ${timeoutMs}ms`)
         );

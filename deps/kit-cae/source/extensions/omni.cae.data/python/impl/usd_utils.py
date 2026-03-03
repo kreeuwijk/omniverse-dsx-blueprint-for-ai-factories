@@ -434,17 +434,7 @@ def get_bracketing_time_codes(prim: Usd.Prim, timeCode: Usd.TimeCode) -> tuple[U
         for rel in aprim.GetAuthoredRelationships():
             for tpath in rel.GetForwardedTargets():
                 target = stage.GetPrimAtPath(tpath)
-                if not target.IsValid():
-                    continue
-
-                if target.IsA(cae.FieldArray):
-                    # traverse into the field array
-                    populate_time_samples(target)
-
-                if target.IsA(cae.DataSet) and not aprim.IsA(cae.DataSet):
-                    # only traverse into the data set if the current prim is not a data set
-                    # this avoid aggressive traversal into nested data sets which
-                    # occur with polyhedral schemas.
+                if target.IsValid() and (target.IsA(cae.DataSet) or target.IsA(cae.FieldArray)):
                     populate_time_samples(target)
 
     populate_time_samples(prim)

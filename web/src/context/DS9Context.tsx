@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useMemo, useState } from 'react';
 import { Gpu, Power, Site, Country, Region } from "@/data/options"
 
 export type Config = {
@@ -61,23 +61,31 @@ export const DS9ConfigProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         }
     }
 
+    const value = useMemo(() => ({
+        selectedGpu,
+        setSelectedGpu,
+        selectedSite,
+        savedConfigs,
+        selectedPower,
+        setSelectedPower,
+        setSelectedSite,
+        selectedCountry,
+        setSelectedCountry,
+        selectedRegion,
+        setSelectedRegion,
+        saveConfiguration,
+    }), [
+        selectedGpu,
+        selectedSite,
+        savedConfigs,
+        selectedPower,
+        selectedCountry,
+        selectedRegion,
+        saveConfiguration,
+    ]);
+
     return (
-        <ConfigContext.Provider
-            value={{
-                selectedGpu,
-                setSelectedGpu,
-                selectedSite,
-                savedConfigs, 
-                selectedPower,
-                setSelectedPower,
-                setSelectedSite,
-                selectedCountry,
-                setSelectedCountry,
-                selectedRegion,
-                setSelectedRegion,
-                saveConfiguration,
-            }}
-        >
+        <ConfigContext.Provider value={value}>
             {children}
         </ConfigContext.Provider>
     )

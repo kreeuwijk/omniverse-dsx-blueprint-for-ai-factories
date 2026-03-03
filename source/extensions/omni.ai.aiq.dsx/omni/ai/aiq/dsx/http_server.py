@@ -15,6 +15,7 @@ Endpoints:
 
 import json
 import os
+import re
 import time
 import threading
 import traceback
@@ -23,6 +24,16 @@ from http.server import HTTPServer, BaseHTTPRequestHandler
 from typing import Optional
 
 import carb
+
+try:
+    from dsxcode.camera_utils import WAYPOINTS, CAMERAS, CAMERA_PATH_PREFIX
+except ImportError:
+    WAYPOINTS = {}
+    CAMERAS = {}
+    CAMERA_PATH_PREFIX = "/World/interactive_cameras/"
+
+# Precompiled regex for stripping the "FINAL" prefix from agent responses
+_FINAL_RE = re.compile(r'^\s*FINAL\s*')
 
 # Kit's event loop — captured during startup from the main thread
 _kit_loop = None
@@ -128,8 +139,7 @@ def _extract_response_text(result) -> str:
     else:
         text = str(result)
     # Strip the "FINAL" prefix the multi-agent framework prepends
-    import re
-    text = re.sub(r'^\s*FINAL\s*', '', text, count=1)
+    text = _FINAL_RE.sub('', text, count=1)
     return text.strip()
 
 
@@ -239,22 +249,22 @@ def _get_agent_response(message: str, user_id: str = "local-user",
     """
     try:
         t0 = time.monotonic()
-        carb.log_warn(f"[DSX Agent API] Building network for: {message[:80]}...")
+        carb.log_info(f"[DSX Agent API] Building network for: {message[:80]}...")
         network, error = _build_network(message, history)
         if error:
             return {"response": error, "actions": []}
         t1 = time.monotonic()
-        carb.log_warn(f"[DSX Agent API] Network built in {t1 - t0:.2f}s — calling ainvoke()...")
+        carb.log_info(f"[DSX Agent API] Network built in {t1 - t0:.2f}s — calling ainvoke()...")
 
         result = _run_async(network.ainvoke())
         t2 = time.monotonic()
         response_text = _extract_response_text(result)
 
-        carb.log_warn(f"[DSX Agent API] ainvoke() completed in {t2 - t1:.2f}s — "
+        carb.log_info(f"[DSX Agent API] ainvoke() completed in {t2 - t1:.2f}s — "
                       f"response ({len(response_text)} chars): {response_text[:200]}")
 
         actions = _extract_actions(response_text)
-        carb.log_warn(f"[DSX Agent API] Actions: {actions}")
+        carb.log_info(f"[DSX Agent API] Actions: {actions}")
 
         return {
             "response": response_text,
@@ -306,7 +316,6 @@ def _extract_actions(response_text: str) -> list:
     # Detect when the agent actually SHOWED CFD results (not just navigated
     # to cfd_camera).  Uses content-specific phrases so that navigating to
     # cfd_camera for the hot aisle view does NOT falsely enable CFD.
-    import re as _re
     is_cfd = False
     # Must match CFD *content* keywords — not bare "cfd" which appears in "cfd_camera"
     cfd_content = ("cfd result", "cfd layer", "cfd simulation", "cfd data",
@@ -354,15 +363,6 @@ def _extract_actions(response_text: str) -> list:
     # ── Camera navigation ────────────────────────────────────────────────
     # Detect navigation language in the response (skip if CFD or isolation already handled)
     if not is_cfd and not is_isolation and any(kw in text_lower for kw in ("navigat", "camera", "switch", "moved", "view")):
-        import re
-
-        try:
-            from dsxcode.camera_utils import WAYPOINTS, CAMERAS, CAMERA_PATH_PREFIX
-        except ImportError:
-            WAYPOINTS = {}
-            CAMERAS = {}
-            CAMERA_PATH_PREFIX = "/World/interactive_cameras/"
-
         # 1) BEST: match content-specific waypoint keywords in the response.
         #    This is more reliable than the camera prim name because the LLM
         #    sometimes picks the wrong waypoint (e.g. "hot_aisle" for a piping
@@ -616,7 +616,7 @@ class DSXAgentHandler(BaseHTTPRequestHandler):
                     self._write_sse({"type": "status", "message": progress_steps[step_idx][1]})
                     step_idx += 1
 
-                time.sleep(0.5)
+                time.sleep(0.1)
 
             # Future is done — get result and stream it word-by-word
             try:
@@ -637,14 +637,14 @@ class DSXAgentHandler(BaseHTTPRequestHandler):
                 # Stream the final response word-by-word for a typing effect.
                 # Split into small chunks (~3 words each) and send with short delays.
                 words = response_text.split(' ')
-                chunk_size = 3  # words per SSE event
+                chunk_size = 6  # words per SSE event (doubled to reduce flush calls)
                 for i in range(0, len(words), chunk_size):
                     chunk = ' '.join(words[i:i + chunk_size])
                     # Add trailing space unless it's the last chunk
                     if i + chunk_size < len(words):
                         chunk += ' '
                     self._write_sse({"type": "content", "content": chunk})
-                    time.sleep(0.04)  # 40ms between chunks — smooth typing feel
+                    time.sleep(0.08)  # 80ms between chunks — smooth typing feel
 
                 self._write_sse({"type": "done"})
 

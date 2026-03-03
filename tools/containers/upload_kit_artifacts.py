@@ -424,46 +424,32 @@ def should_upload_on_error_only(secrets):
     return False
 
 
-def upload_file_to_cloud(file_path, dest_path, chunk_size_mb=64, large_file_threshold_mb=100):
-    """Upload a single file to cloud storage with chunked upload for large files.
+def upload_file_to_cloud(file_path, dest_path, chunk_size_mb=64):
+    """Upload a single file to cloud storage using chunked streaming.
 
     Args:
         file_path: Path object of the file to upload
         dest_path: CloudPath destination for the file
-        chunk_size_mb: Chunk size in MB for large file uploads (default: 64MB)
-        large_file_threshold_mb: Size threshold in MB to trigger chunked upload (default: 100MB)
+        chunk_size_mb: Chunk size in MB for uploads (default: 64MB)
 
     Returns:
         bool: True if upload succeeded, False otherwise
     """
-    size_bytes = file_path.stat().st_size
-    size_mb = size_bytes / (1024 * 1024)
-
-    # For large files, use chunked upload to avoid memory issues
-    if size_mb > large_file_threshold_mb:
-        log(f"Uploading large file {file_path.name} ({size_mb:.2f} MB) in chunks...")
-        try:
-            with file_path.open("rb") as src:
-                with dest_path.open("wb") as dst:
-                    chunk_size = chunk_size_mb * 1024 * 1024  # Convert to bytes
-                    while True:
-                        chunk = src.read(chunk_size)
-                        if not chunk:
-                            break
-                        dst.write(chunk)
-            return True
-        except Exception as e:
-            log(f"Failed to upload {file_path.name}: {e}", "ERROR")
-            return False
-    else:
-        # Small files can be uploaded in one go
-        try:
-            dest_path.write_bytes(file_path.read_bytes())
-            log(f"Uploaded {file_path.name} ({size_mb:.2f} MB)")
-            return True
-        except Exception as e:
-            log(f"Failed to upload {file_path.name}: {e}", "ERROR")
-            return False
+    size_mb = file_path.stat().st_size / (1024 * 1024)
+    log(f"Uploading {file_path.name} ({size_mb:.2f} MB)...")
+    try:
+        with file_path.open("rb") as src:
+            with dest_path.open("wb") as dst:
+                chunk_size = chunk_size_mb * 1024 * 1024
+                while True:
+                    chunk = src.read(chunk_size)
+                    if not chunk:
+                        break
+                    dst.write(chunk)
+        return True
+    except Exception as e:
+        log(f"Failed to upload {file_path.name}: {e}", "ERROR")
+        return False
 
 
 def upload_to_cloud(artifact_path, files, exit_code, storage_uri, max_file_size_mb):

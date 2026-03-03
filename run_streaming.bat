@@ -28,12 +28,12 @@ if not exist "_build" (
 
     REM 2. Build kit-cae schemas
     echo Building kit-cae schemas...
-    call vendor\kit-cae\repo.bat schema
+    call deps\kit-cae\repo.bat schema
     if errorlevel 1 ( echo CAE schema build failed! & exit /b 1 )
 
     REM 3. Build kit-cae extensions
     echo Building kit-cae extensions...
-    call vendor\kit-cae\repo.bat build
+    call deps\kit-cae\repo.bat build
     if errorlevel 1 ( echo CAE build failed! & exit /b 1 )
 
     REM 4. Precache extensions (must run after kit-cae is built)
@@ -46,12 +46,6 @@ if not exist "_build" (
     call repo.bat build -r
     if errorlevel 1 ( echo Build failed! & exit /b 1 )
 )
-
-REM Launch Kit with streaming configuration using repo.bat
-echo Starting Kit with streaming enabled...
-echo Loading USD: %USD_URL%
-echo Connect your web browser to http://localhost:8080?server=localhost
-echo.
 
 REM Run the streaming version with no window
 call repo.bat launch dsx_streaming.kit -- --no-window %*

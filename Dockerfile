@@ -5,7 +5,7 @@ WORKDIR /app/web
 COPY web/package.json .
 COPY web/package-lock.json .
 
-RUN npm ci --ignore-scripts
+RUN --mount=type=cache,target=/root/.npm npm ci --ignore-scripts
 
 COPY web/ .
 
@@ -39,7 +39,7 @@ FROM python:3.13-slim-bookworm AS build-backend
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    PIP_NO_CACHE_DIR=off \
+    PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=on \
     PIP_DEFAULT_TIMEOUT=100 \
     POETRY_VERSION=1.8.3 \
@@ -76,8 +76,7 @@ COPY backend/pyproject.toml .
 COPY backend/README.md .
 
 # Install runtime dependencies
-#RUN poetry install --only main
-RUN poetry lock --no-update && poetry install --only main
+RUN poetry install --only main --no-root
 
 # Create placeholder settings for migrations
 RUN cat << 'EOF' > /app/backend/settings.toml
@@ -101,13 +100,7 @@ FROM python:3.13-slim-bookworm AS serve
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    POETRY_VERSION=1.8.3 \
-    POETRY_HOME="/opt/poetry" \
-    POETRY_VIRTUALENVS_IN_PROJECT=true \
-    POETRY_NO_INTERACTION=1 \
     ACCEPT_EULA=Y
-
-ENV PATH="$POETRY_HOME/bin:$PATH"
 
 # Install nginx, supervisor, gettext, and ODBC dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -123,9 +116,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && ACCEPT_EULA=Y apt-get install -y --no-install-recommends msodbcsql18 \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
-
-# Install poetry
-RUN curl -sSL https://install.python-poetry.org | python3 -
 
 # Create nginx user with UID 101
 RUN groupadd -g 101 nginx 2>/dev/null || true && \
@@ -178,9 +168,8 @@ logfile=/tmp/supervisord.log
 pidfile=/tmp/supervisord.pid
 
 [program:api]
-command=/bin/sh -c "cd /app/backend && /opt/poetry/bin/poetry run api"
+command=/app/backend/.venv/bin/python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
 directory=/app/backend
-environment=PATH="/opt/poetry/bin:/usr/local/bin:/usr/bin:/bin",POETRY_HOME="/opt/poetry",POETRY_VIRTUALENVS_IN_PROJECT="true"
 stdout_logfile=/dev/stdout
 stdout_logfile_maxbytes=0
 stderr_logfile=/dev/stderr

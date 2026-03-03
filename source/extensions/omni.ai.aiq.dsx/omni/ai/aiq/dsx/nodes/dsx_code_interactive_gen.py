@@ -5,6 +5,10 @@ from typing import Optional
 
 from lc_agent import RunnableNode, RunnableSystemAppend
 
+_MESSAGES_DIR = (Path(__file__).parent / ".." / ".." / ".." / ".." / ".." / "messages").resolve()
+_CODE_SYSTEM_MSG_PATH = _MESSAGES_DIR / "dsx_kit_code_system_message.md"
+_CACHED_CODE_SYSTEM_MSG = None
+
 
 class DsxCodeInteractiveGen(RunnableNode):
     """Generation node that injects the DSX code system message."""
@@ -13,12 +17,11 @@ class DsxCodeInteractiveGen(RunnableNode):
         super().__init__(**kwargs)
 
         if system_message is None:
-            md_path = (
-                Path(__file__).parent / ".." / ".." / ".." / ".." / ".."
-                / "messages" / "dsx_kit_code_system_message.md"
-            )
-            if md_path.exists():
-                system_message = md_path.read_text(encoding="utf-8")
+            global _CACHED_CODE_SYSTEM_MSG
+            if _CACHED_CODE_SYSTEM_MSG is None:
+                if _CODE_SYSTEM_MSG_PATH.exists():
+                    _CACHED_CODE_SYSTEM_MSG = _CODE_SYSTEM_MSG_PATH.read_text(encoding="utf-8")
+            system_message = _CACHED_CODE_SYSTEM_MSG
 
         if system_message:
             self.inputs.append(RunnableSystemAppend(system_message=system_message))

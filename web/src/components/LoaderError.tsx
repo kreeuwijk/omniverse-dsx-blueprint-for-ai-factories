@@ -1,26 +1,35 @@
-import { Alert, Box } from "@mantine/core";
-import { IconInfoCircle } from "@tabler/icons-react";
+import { Paper, Stack, Text, Title } from "@mantine/core";
 import { ReactNode } from "react";
 
 export interface LoaderErrorProps {
-  children?: ReactNode;
   title?: string;
+  children?: ReactNode;
 }
 
 export default function LoaderError({
-  title = "Error",
+  title = "Something went wrong",
   children,
 }: LoaderErrorProps) {
   return (
-    <Box p={"xl"} pos={"relative"} style={{ zIndex: 1 }}>
-      <Alert
-        variant="filled"
-        color="red"
-        title={title}
-        icon={<IconInfoCircle />}
-      >
-        {children}
-      </Alert>
-    </Box>
+    <Paper
+      m={"md"}
+      p={"md"}
+      radius={"sm"}
+      withBorder
+      style={{
+        backgroundColor: "#2b0000",
+        borderColor: "#6b1111",
+        color: "#ffffff",
+        position: "relative",
+        zIndex: 1000,
+      }}
+    >
+      <Stack gap={"xs"}>
+        <Title order={5} c={"red.2"}>
+          {title}
+        </Title>
+        {typeof children === "string" ? <Text size={"sm"}>{children}</Text> : children}
+      </Stack>
+    </Paper>
   );
 }

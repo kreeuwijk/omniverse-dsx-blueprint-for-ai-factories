@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import "@arcgis/core/assets/esri/themes/dark/main.css";
 import SceneView from "@arcgis/core/views/SceneView";
 import WebScene from "@arcgis/core/WebScene";
 

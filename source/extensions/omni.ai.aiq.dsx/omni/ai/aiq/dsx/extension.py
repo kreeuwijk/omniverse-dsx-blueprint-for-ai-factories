@@ -157,7 +157,7 @@ def copy_usd_functions_to_modules():
 
         def copy_to_module(target_module, module_name, functions_to_copy):
             copied_count = 0
-            for name, obj in inspect.getmembers(usd_meta_functions_get):
+            for name, obj in vars(usd_meta_functions_get).items():
                 if name.startswith("_"):
                     continue
                 if inspect.isfunction(obj) or inspect.iscoroutinefunction(obj):
@@ -200,7 +200,10 @@ class DSXAgentExtension(omni.ext.IExt):
         # Capture Kit's event loop (we're on the main thread during on_startup)
         import asyncio
         try:
-            loop = asyncio.get_event_loop()
+            try:
+                loop = asyncio.get_running_loop()
+            except RuntimeError:
+                loop = asyncio.get_event_loop()
             set_kit_event_loop(loop)
             print(f"[omni.ai.aiq.dsx] Captured Kit event loop (running={loop.is_running()})")
         except Exception as e:

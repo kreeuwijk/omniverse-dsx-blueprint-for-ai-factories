@@ -30,7 +30,10 @@ def _make_context(stage):
 
 def _new_ext():
     """Create a bare ManagerExtension instance (skip on_startup)."""
-    return _ext_mod.ManagerExtension.__new__(_ext_mod.ManagerExtension)
+    ext = _ext_mod.ManagerExtension.__new__(_ext_mod.ManagerExtension)
+    ext._camera_map = None
+    ext._variant_cache = None
+    return ext
 
 
 class TestRouteChangeGpu(omni.kit.test.AsyncTestCase):

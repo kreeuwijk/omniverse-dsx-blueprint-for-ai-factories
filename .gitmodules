@@ -4,6 +4,5 @@
 	ignore = dirty
 [submodule "deps/kit-cae"]
 	path = deps/kit-cae
-	url = https://gitlab-master.nvidia.com/omniverse/kit-extensions/kit-cae.git
-	branch = public/1.0
+	url = https://github.com/NVIDIA-Omniverse/kit-cae.git
 	ignore = dirty

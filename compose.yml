@@ -15,7 +15,9 @@ services:
     build:
       context: .
     privileged: true
+    restart: unless-stopped
     network_mode: host
+    # Note: ports are ignored when network_mode is host; listed for documentation only
     ports:
       - "1024:1024/udp"
       - "49100:49100/tcp"
@@ -43,7 +45,7 @@ services:
       context: web
       dockerfile: Dockerfile
     ports:
-      - "8080:80/tcp"
+      - "8080:8080/tcp"
     environment:
       VITE_OMNIVERSE_SERVER: "localhost"
       VITE_SIGNALING_PORT: "49100"

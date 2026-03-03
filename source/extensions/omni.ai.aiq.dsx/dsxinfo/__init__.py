@@ -48,6 +48,53 @@ _COMPONENT_ALIASES: Dict[str, List[str]] = {
     "site_equipment": ["Site_Equipement", "SITE_EQUIPMENT"],
 }
 
+# ── Scene cache ──────────────────────────────────────────────────────────────
+# Single-pass traversal cache, invalidated when the stage object changes.
+_scene_cache: Dict = {"stage_id": None, "components": {}, "cameras": []}
+
+
+def _invalidate_cache() -> None:
+    """Force the cache to rebuild on next access."""
+    _scene_cache["stage_id"] = None
+
+
+def _ensure_cache():
+    """Rebuild the cache with a single stage traversal if the stage has changed.
+
+    Returns:
+        The current stage, or ``None`` if no stage is loaded.
+    """
+    stage = omni.usd.get_context().get_stage()
+    if not stage:
+        return None
+
+    stage_id = id(stage)
+    if _scene_cache["stage_id"] == stage_id:
+        return stage
+
+    # Rebuild via a single traversal
+    from pxr import UsdGeom
+
+    _scene_cache["stage_id"] = stage_id
+    _scene_cache["cameras"] = []
+    _scene_cache["components"] = {}
+
+    for prim in stage.Traverse():
+        # Cameras
+        if prim.IsA(UsdGeom.Camera):
+            _scene_cache["cameras"].append(str(prim.GetPath()))
+
+        # Component categories — each prim counts for at most one key
+        name = prim.GetName().lower()
+        for key, patterns in _COMPONENT_ALIASES.items():
+            if any(p.lower() in name for p in patterns):
+                _scene_cache["components"].setdefault(key, []).append(
+                    str(prim.GetPath())
+                )
+                break
+
+    return stage
+
 
 def find_datacenter_components(component_type: str) -> List[str]:
     """Find all prims of a given datacenter component type.
@@ -62,13 +109,20 @@ def find_datacenter_components(component_type: str) -> List[str]:
     Returns:
         List of prim paths matching the component type.
     """
-    stage = omni.usd.get_context().get_stage()
+    stage = _ensure_cache()
     if not stage:
         return []
 
     key = component_type.lower().replace(" ", "_").replace("-", "_")
-    patterns = _COMPONENT_ALIASES.get(key, [key])
 
+    # If the key is a known alias, return from the cache directly
+    if key in _COMPONENT_ALIASES:
+        return list(_scene_cache["components"].get(key, []))
+
+    # Fallback for raw substrings not in _COMPONENT_ALIASES: search the
+    # cached prim paths to avoid a fresh traversal where possible, but fall
+    # back to a real traversal when the substring doesn't match any cached key.
+    patterns = [key]
     results = []
     for prim in stage.Traverse():
         prim_name = prim.GetName().lower()
@@ -83,16 +137,11 @@ def list_cameras() -> List[str]:
     Returns:
         List of full prim paths for every Camera in the stage.
     """
-    stage = omni.usd.get_context().get_stage()
+    stage = _ensure_cache()
     if not stage:
         return []
 
-    from pxr import UsdGeom
-    cameras = []
-    for prim in stage.Traverse():
-        if prim.IsA(UsdGeom.Camera):
-            cameras.append(str(prim.GetPath()))
-    return cameras
+    return list(_scene_cache["cameras"])
 
 
 def get_prim_info(prim_path: str) -> dict:
@@ -159,11 +208,14 @@ def get_scene_summary() -> dict:
     """Get a high-level summary of the datacenter scene.
 
     Returns:
-        Dict with counts per component type and camera list.
+        Dict with counts per component type and camera count.
     """
+    stage = _ensure_cache()
+    if not stage:
+        return {}
+
     summary = {}
     for comp_type in _COMPONENT_ALIASES:
-        prims = find_datacenter_components(comp_type)
-        summary[comp_type] = len(prims)
-    summary["cameras"] = len(list_cameras())
+        summary[comp_type] = len(_scene_cache["components"].get(comp_type, []))
+    summary["cameras"] = len(_scene_cache["cameras"])
     return summary

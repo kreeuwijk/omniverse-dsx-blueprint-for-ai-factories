@@ -33,7 +33,7 @@ spec:
       automountServiceAccountToken: false
       securityContext:
         {{- toYaml .Values.kit.podSecurityContext | nindent 8 }}
-      terminationGracePeriodSeconds: 30
+      terminationGracePeriodSeconds: 120
       containers:
         - name: kit
           image: {{ include "dsx.kit.image" . }}

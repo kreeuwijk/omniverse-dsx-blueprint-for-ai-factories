@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useMemo, useState } from 'react';
 
 /**
  * SimulationContext.tsx
@@ -103,29 +103,39 @@ export const SimulationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const [electricalOperation, setElectricalOperation] = useState<ElectricalOperation>('Normal');
   const [electricalVariable, setElectricalVariable] = useState<ElectricalVariable>('Voltage');
 
+  const value = useMemo(() => ({
+    activeSimulationTab,
+    setActiveSimulationTab,
+    thermalZone,
+    setThermalZone,
+    thermalOperation,
+    setThermalOperation,
+    thermalVariable,
+    setThermalVariable,
+    thermalHeatLoad,
+    setThermalHeatLoad,
+    thermalIsRunning,
+    setThermalIsRunning,
+    electricalZone,
+    setElectricalZone,
+    electricalOperation,
+    setElectricalOperation,
+    electricalVariable,
+    setElectricalVariable,
+  }), [
+    activeSimulationTab,
+    thermalZone,
+    thermalOperation,
+    thermalVariable,
+    thermalHeatLoad,
+    thermalIsRunning,
+    electricalZone,
+    electricalOperation,
+    electricalVariable,
+  ]);
+
   return (
-    <SimulationContext.Provider
-      value={{
-        activeSimulationTab,
-        setActiveSimulationTab,
-        thermalZone,
-        setThermalZone,
-        thermalOperation,
-        setThermalOperation,
-        thermalVariable,
-        setThermalVariable,
-        thermalHeatLoad,
-        setThermalHeatLoad,
-        thermalIsRunning,
-        setThermalIsRunning,
-        electricalZone,
-        setElectricalZone,
-        electricalOperation,
-        setElectricalOperation,
-        electricalVariable,
-        setElectricalVariable,
-      }}
-    >
+    <SimulationContext.Provider value={value}>
       {children}
     </SimulationContext.Provider>
   );

@@ -58,7 +58,7 @@ Ensure your system meets the following requirements:
 - [**Git LFS**](https://git-lfs.com/): For managing large files within the repository
 
 #### Kit Application Development (C++)
-- **(Windows) Microsoft Visual Studio (2019 or 2022)**: Install from [Visual Studio Downloads](https://visualstudio.microsoft.com/downloads/). Ensure **Desktop development with C++** workload is selected. [Additional configuration details](readme-assets/additional-docs/windows_developer_configuration.md)
+- **(Windows) Microsoft Visual Studio 2019**: Install from [Visual Studio Downloads](https://visualstudio.microsoft.com/downloads/). Ensure **Desktop development with C++** workload is selected. VS2019 is required because the Kit-CAE extension links against Boost libraries built with the v142 toolset. [Additional configuration details](readme-assets/additional-docs/windows_developer_configuration.md)
 - **(Windows) Windows SDK**: Install alongside MSVC via Visual Studio Installer
 - **(Linux) build-essentials**: Install with `sudo apt-get install build-essential`
 

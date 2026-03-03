@@ -48,6 +48,15 @@ export default defineConfig({
       input: {
         main: resolve(__dirname, "index.html"),
       },
+      output: {
+        manualChunks: {
+          "vendor-react": ["react", "react-dom", "react-router-dom"],
+          "vendor-mantine": ["@mantine/core", "@mantine/hooks", "@mantine/notifications"],
+          "vendor-arcgis": ["@arcgis/core"],
+          "vendor-webrtc": ["@nvidia/omniverse-webrtc-streaming-library"],
+          "vendor-charts": ["recharts"],
+        },
+      },
     },
   },
 })

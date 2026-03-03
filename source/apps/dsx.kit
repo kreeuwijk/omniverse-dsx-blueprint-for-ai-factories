@@ -27,7 +27,7 @@ template_name = "omni.usd_viewer"
 "omni.hydra.rtx" = {}
 "omni.hydra.usdrt_delegate" = {}
 "omni.kit.manipulator.camera" = {}
-"omni.kit.manipulator.selection" = {}
+# "omni.kit.manipulator.selection" = {}  # Disabled — interactive mouse selection not needed; pickability is controlled programmatically
 "omni.kit.renderer.core" = {}
 "omni.kit.sequencer.core" = {}
 "omni.kit.uiapp" = {}
@@ -99,7 +99,6 @@ titleVersion = "2.0.0"
 content.emptyStageOnStart = false  # Disabled - auto_load_usd will open the stage instead
 fastShutdown = true  # Skip long full shutdown and exit quickly
 livestream.allowResize = 1
-livestream.skipCapture = 1  # livestream skipCapture ON for local streaming
 name = "DSX"
 renderer.resolution.width = 1920
 renderer.resolution.height = 1080
@@ -174,8 +173,8 @@ renderer.gpuEnumeration.glInterop.enabled = false  # Improves startup speed
 renderer.multiGpu.enabled = true
 rendergraph.maxFramesInFlight = 2
 rtx.ecoMode.enabled = false
-rtx.hydra.geometrystreaming.gpuBudgetMB = 64000
-rtx.hydra.geometrystreaming.instanceBudget = 14388608
+rtx.hydra.geometrystreaming.gpuBudgetMB = 40000
+rtx.hydra.geometrystreaming.instanceBudget = 3000000
 rtx.hydra.mdlMaterialWarmup = true  # start loading MDL shaders early
 rtx.occlusionDetection.enabled = true  # Skip rendering occluded objects (reduces GPU load)
 rtx.post.aa.op = 3
@@ -184,16 +183,11 @@ rtx.rendermode = "RealTimePathTracing"
 rtx.rtpt.cached.enabled = true  # Cached path tracing - reuses temporal data, significantly reduces render cost for CAE
 rtx.verifyDriverVersion.enabled = false
 rtx-defaults.rendermode = "RealTimePathTracing"
-rtx-transient.dlssg.enabled = true  # DLSS Frame Generation - helps maintain framerate during heavy CAE rendering
+rtx-transient.dlssg.enabled = true
 rtx-transient.ptEnabled = false  # Disable legacy path tracing
 rtx-transient.rt2Enabled = true  # Enable RT2 (more efficient path tracing engine)
 rtx-transient.scenedb.forceMaxTLASInstancesLimit = 15000000
-rtx-transient.scenedb.instanceBudget = 1000000
-
-# Material sync settings (useful for NVCF / streaming)
-rtx.materialDb.syncLoads = true
-rtx.hydra.materialSyncLoads = true
-exts."omni.kit.plugin".syncUsdLoads = true
+rtx-transient.scenedb.instanceBudget = 3000000
 
 # Settings required for CAE
 # Necessary for Flow

@@ -1,10 +1,10 @@
-import React, { createContext, useContext, useReducer } from "react";
+import React, { createContext, useContext, useMemo, useReducer, Dispatch } from "react";
 
 // The different configurator modes a user can toggle between
 export type ConfigMode = "site" | "gpu" | "power";
 
 // Valid camera names for the 3D scene
-export type CameraName = 
+export type CameraName =
   | 'camera_int_datahall_01'
   | 'camera_int_datahall_02'
   | 'camera_int_datahall_03'
@@ -15,20 +15,22 @@ export type CameraName =
   | 'camera_ext_default_04'
   | 'cfd_camera';
 
-type UIState = {
-  // Visibility states for UI panels
+// ---- State types ----
+
+interface PanelState {
   configurator: boolean;
   analytics: boolean;
   simulations: boolean;
   viewer: boolean;
   agent: boolean;
+}
 
-  // Current active camera in the 3D scene
+interface ViewState {
   activeCamera: CameraName;
-
-  // Active tab on configurator panel
   activeConfigMode: ConfigMode;
-};
+}
+
+type UIState = PanelState & ViewState;
 
 export type Action =
   | { type: "TOGGLE_CONFIGURATOR" }
@@ -102,27 +104,67 @@ function uiReducer(state: UIState, action: Action): UIState {
   }
 }
 
-type UIContextType = {
-  state: UIState;
-  dispatch: React.Dispatch<Action>;
-};
+// ---- Two separate contexts ----
 
-const UIContext = createContext<UIContextType | undefined>(undefined);
+const PanelContext = createContext<{ state: PanelState; dispatch: Dispatch<Action> } | undefined>(undefined);
+const ViewContext = createContext<{ state: ViewState; dispatch: Dispatch<Action> } | undefined>(undefined);
+
+// ---- Single provider that wraps both ----
 
 export const UIProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
   const [state, dispatch] = useReducer(uiReducer, initialUIState);
 
+  const panelValue = useMemo(() => ({
+    state: {
+      configurator: state.configurator,
+      analytics: state.analytics,
+      simulations: state.simulations,
+      viewer: state.viewer,
+      agent: state.agent,
+    },
+    dispatch,
+  }), [state.configurator, state.analytics, state.simulations, state.viewer, state.agent, dispatch]);
+
+  const viewValue = useMemo(() => ({
+    state: {
+      activeCamera: state.activeCamera,
+      activeConfigMode: state.activeConfigMode,
+    },
+    dispatch,
+  }), [state.activeCamera, state.activeConfigMode, dispatch]);
+
   return (
-    <UIContext.Provider value={{ state, dispatch }}>
-      {children}
-    </UIContext.Provider>
+    <PanelContext.Provider value={panelValue}>
+      <ViewContext.Provider value={viewValue}>
+        {children}
+      </ViewContext.Provider>
+    </PanelContext.Provider>
   );
 };
 
-export const useUI = () => {
-  const context = useContext(UIContext);
-  if (!context) throw new Error("useUI must be used within UIProvider");
+// ---- Granular hooks ----
+
+export const usePanels = () => {
+  const context = useContext(PanelContext);
+  if (!context) throw new Error("usePanels must be used within UIProvider");
   return context;
+};
+
+export const useView = () => {
+  const context = useContext(ViewContext);
+  if (!context) throw new Error("useView must be used within UIProvider");
+  return context;
+};
+
+// ---- Backward-compatible hook ----
+
+export const useUI = () => {
+  const panels = usePanels();
+  const view = useView();
+  return {
+    state: { ...panels.state, ...view.state },
+    dispatch: panels.dispatch, // same dispatch instance
+  };
 };

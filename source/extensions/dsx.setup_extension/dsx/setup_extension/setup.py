@@ -29,7 +29,6 @@ COMMAND_MACRO_FILE_SETTING = COMMAND_MACRO_SETTING + "macro_file"
 
 async def _load_layout(layout_file: str):
     """Loads a provided layout file and ensures the viewport is set to FILL."""
-    await omni.kit.app.get_app().next_update_async()
     QuickLayout.load_file(layout_file)
 
     # Set viewport to FILL
@@ -81,8 +80,7 @@ class SetupExtension(omni.ext.IExt):
         # few frame delay to allow automatic Layout of window that want their
         # own positions
         app = omni.kit.app.get_app()
-        for _ in range(4):
-            await app.next_update_async()  # type: ignore
+        await app.next_update_async()  # type: ignore
 
         settings = carb.settings.get_settings()
         # setup the Layout for your app
@@ -95,15 +93,18 @@ class SetupExtension(omni.ext.IExt):
         asyncio.ensure_future(_load_layout(f"{layout_file}"))
 
         # using imgui directly to adjust some color and Variable
-        imgui = _imgui.acquire_imgui()
+        # Skip imgui calls in headless/test mode — the native imgui context
+        # may not exist, which causes a crash on Windows.
+        if not settings.get("/app/isTestRun"):
+            imgui = _imgui.acquire_imgui()
 
-        # DockSplitterSize is the variable that drive the size of the
-        # Dock Split connection
-        imgui.push_style_var_float(_imgui.StyleVar.DockSplitterSize, 2)
+            # DockSplitterSize is the variable that drive the size of the
+            # Dock Split connection
+            imgui.push_style_var_float(_imgui.StyleVar.DockSplitterSize, 2)
 
-    async def _open_stage(self, url, frame_delay: int = 5):
+    async def _open_stage(self, url, frame_delay: int = 1):
         """Opens the provided USD stage and loads the render settings."""
-        # default 5 frame delay to allow for Layout
+        # minimal frame delay to allow for Layout
         if frame_delay:
             app = omni.kit.app.get_app()
             for _ in range(frame_delay):
@@ -117,8 +118,10 @@ class SetupExtension(omni.ext.IExt):
         # render-settings now as the renderer may not have been fully
         # setup when the stage was opened.
         if not bool(self._settings.get("/app/content/emptyStageOnStart")):
-            usd_context.load_render_settings_from_stage(
-                usd_context.get_stage_id())
+            stage = usd_context.get_stage()
+            if stage and stage.GetPrimAtPath("/Render/RenderSettings"):
+                usd_context.load_render_settings_from_stage(
+                    usd_context.get_stage_id())
 
     def on_shutdown(self):
         """This is called every time the extension is deactivated."""

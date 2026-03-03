@@ -54,6 +54,7 @@ dependencies = [
 ]
 
 args = [
+    "--/app/auto_load_usd=",
     "--/app/layout/name=default",
     "--/app/fastShutdown=1",
     "--/app/file/ignoreUnsavedOnExit=true",

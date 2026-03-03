@@ -26,19 +26,29 @@ renderer.resolution.height = 1080
 renderer.resolution.width = 1920
 window.height = 1080
 window.width = 1920
+livestream.skipCapture = 1
 
 [settings]
+rendergraph.maxFramesInFlight = 2
 rtx.post.aa.op = 3
 rtx.verifyDriverVersion.enabled = false
 renderer.asyncInit = true # Don't block while renderer inits
 renderer.gpuEnumeration.glInterop.enabled = false # Improves startup speed.
 rtx.ecoMode.enabled = false
-rtx.hydra.geometrystreaming.gpuBudgetMB = 64000
+rtx.hydra.geometrystreaming.gpuBudgetMB = 40000
 rtx.hydra.geometrystreaming.instanceBudget = 14388608
 rtx.hydra.mdlMaterialWarmup = true # start loading the MDL shaders needed before any delegate is actually created.
 rtx-transient.dlssg.enabled = true
 rtx-transient.scenedb.forceMaxTLASInstancesLimit = 15000000
 rtx-transient.scenedb.instanceBudget=1000000
+# Safety: Sync material loads cause GPU deadlock between the RTX renderer and the Windows
+# NVENC encoder during WebRTC streaming, producing system-level freezes requiring
+# force-restart (repro'd on Blackwell GPU, NVBug 5934460). These are explicitly disabled
+# here to guard against accidental re-introduction via the base dsx.kit config.
+# Note: dsx_nvcf.kit intentionally keeps sync loads enabled for cloud deployment.
+rtx.materialDb.syncLoads = false
+rtx.hydra.materialSyncLoads = false
+exts."omni.kit.plugin".syncUsdLoads = false
 # Settings required for CAE
 # Necessary for Flow
 exts."omni.flowusd".voxelize_velocity_vec4 = false
@@ -69,9 +79,6 @@ folders.'++' = [  # Search paths for extensions.
 
 [settings.app.file]
 ignoreUnsavedOnExit = true
-
-[settings.app.rendergraph]
-maxFramesInFlight = 2
 
 [template]
 type = "ApplicationLayerTemplate" # Repo Template Metadata
