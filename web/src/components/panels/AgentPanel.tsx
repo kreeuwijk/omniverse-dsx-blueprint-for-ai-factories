@@ -1,14 +1,14 @@
 /**
  * AgentPanel.tsx
- * 
+ *
  * Main AI Assistant chat panel component for the Vertex Digital Twin application.
  * This panel allows users to interact with an AI agent that can:
  *   - Answer questions about the datacenter configuration
  *   - Execute actions like switching camera views in the 3D scene
- * 
+ *
  * The panel communicates with a backend AI service and processes both
  * text responses (shown to user) and action commands (executed silently).
- * 
+ *
  * Architecture:
  *   User Input → Backend AI API → Response + Actions
  *                                      ↓
@@ -20,13 +20,13 @@ import { useState } from 'react';
 import { SparklesIcon, History, X } from 'lucide-react';
 import { useAuth } from 'react-oidc-context';
 import { useUI, CameraName } from '@/context/UIContext';
-import { 
-  useConfig, 
-  VALID_COUNTRIES, 
-  VALID_POWER_SOURCES 
+import {
+  useConfig,
+  VALID_COUNTRIES,
+  VALID_POWER_SOURCES
 } from '@/context/DS9Context';
-import { 
-  useSimulation, 
+import {
+  useSimulation,
   SimulationPanel as SimulationPanelType,
   ThermalZone,
   ThermalOperation,
@@ -34,6 +34,7 @@ import {
   ElectricalZone,
   ElectricalOperation,
   ElectricalVariable,
+  EdpSetting,
   VALID_SIMULATION_PANELS,
   VALID_THERMAL_ZONES,
   VALID_THERMAL_OPERATIONS,
@@ -47,7 +48,7 @@ import { CHAT_API_URL, CHAT_STREAM_API_URL, PREFERENCES_API_URL } from '@/config
 import MessageList from './agent/MessageList';
 import MessageInput from './agent/MessageInput';
 import { ChatMessage } from './agent/ChatMessage';
-import { switchCamera, switchVisibility } from '@/streamMessages';
+import { switchCamera, switchVisibility, switchGpuVisibility, setPrimAttribute } from '@/streamMessages';
 
 // ---------------------------------------------------------
 // Configuration
@@ -56,13 +57,13 @@ import { switchCamera, switchVisibility } from '@/streamMessages';
 /**
  * List of valid camera names that the AI agent can switch to.
  * These must match the camera names defined in the Omniverse Kit scene.
- * 
+ *
  * Interior cameras (datahall views):
  *   - camera_int_datahall_01: Inside the datahall looking down a row of deployment units
  *   - camera_int_datahall_02: Close-up of the racks and trays in a deployment unit
  *   - camera_int_datahall_03: View inside the Hot Aisle Containment showing cooling infrastructure
  *   - camera_int_datahall_04: View inside the Hot Aisle Containment showing power infrastructure
- * 
+ *
  * Exterior cameras (default views):
  *   - camera_ext_default_01: Aerial view of entire campus from the front
  *   - camera_ext_default_02: View of the building from the back near power infrastructure yard
@@ -90,14 +91,14 @@ const VALID_CAMERA_NAMES: string[] = [
 /**
  * Represents an action command returned by the AI Agent.
  * The agent can return multiple actions in a single response.
- * 
+ *
  * Currently supported action types:
  *   - 'camera_change': Switch the 3D viewport to a different camera
  *   - 'gpu_change': Switch the GPU configuration (GB200 or GB300)
  *   - 'simulation_change': Change simulation panel settings (thermal/electrical)
  *   - 'site_change': Change the site configurator (country and optionally region)
  *   - 'power_change': Change the power source configuration
- * 
+ *
  * @example
  * { type: 'camera_change', camera_name: 'camera_ext_default_01' }
  * { type: 'gpu_change', gpu_selection: 'GB200' }
@@ -115,6 +116,22 @@ interface AgentAction {
   zone?: string;       // Zone value (varies by panel)
   operation?: string;  // Operation value (varies by panel)
   variable?: string;   // Variable value (varies by panel)
+  start_test?: boolean; // Start/stop thermal CFD test (same as "Begin Test" button)
+  heat_load?: number;   // Thermal heat load percentage (40–100, same as slider)
+  electrical_test?: {   // Electrical power failure test parameters
+    playing?: boolean;
+    failed_rpps?: number;
+    load_percent?: number;
+    edp_setting?: string;
+  };
+  // Per-RPP whip visibility
+  rpp_visible?: Record<number, boolean>;
+  // Isolation fields (isolate POD / restore)
+  isolation?: {
+    isolate?: boolean;
+    hide?: string[];
+    show?: string[];
+  };
   // Site change fields
   country?: string;    // 'United States' or 'Sweden'
   region?: string;     // 'Virginia' or 'New Mexico' (only for United States)
@@ -135,31 +152,31 @@ const VALID_GPU_SELECTIONS = ['GB200', 'GB300'] as const;
 
 /**
  * AgentPanel Component
- * 
+ *
  * A floating chat panel that provides AI-powered assistance for the
  * datacenter visualization. Users can ask questions or give commands,
  * and the AI will respond with information or execute actions.
- * 
+ *
  * State Management:
  *   - messages: Array of chat messages (user + assistant)
  *   - isLoading: True while waiting for AI response
  *   - Panel visibility controlled by UIContext (state.agent)
- * 
+ *
  * @returns The chat panel UI, or null if panel is hidden
  */
 const AgentPanel = () => {
   // Get UI state and dispatch from context
   const { state, dispatch } = useUI();
   const showAgent = state.agent;
-  
+
   // Get config state for updating UI when AI changes GPU, site, or power
-  const { 
+  const {
     setSelectedGpu,
     setSelectedCountry,
     setSelectedRegion,
     setSelectedPower,
   } = useConfig();
-  
+
   // Get simulation state for updating UI when AI changes simulation settings
   const {
     activeSimulationTab,
@@ -167,17 +184,23 @@ const AgentPanel = () => {
     setThermalZone,
     setThermalOperation,
     setThermalVariable,
+    setThermalIsRunning,
+    setThermalHeatLoad,
     setElectricalZone,
+    setElectricalIsPlaying,
+    setElectricalFailedRpps,
+    setElectricalLoadPercent,
+    setElectricalEdpSetting,
     setElectricalOperation,
     setElectricalVariable,
   } = useSimulation();
-  
+
   // Get authenticated user info for user_id
   // Use 'sub' (subject) from OIDC token - this is the stable unique identifier
   // that matches what the backend uses for user_id in the database
   const auth = useAuth();
   const userId = auth.user?.profile?.sub || 'anonymous';
-  
+
   // Local state for chat messages and loading indicator
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -189,7 +212,7 @@ const AgentPanel = () => {
 
   /** Toggle the agent panel visibility */
   const setShowAgent = () => dispatch({ type: "TOGGLE_AGENT" });
-  
+
   /** Update the active camera in UI state (for toolbar sync) */
   const setActiveCamera = (camera: CameraName) => dispatch({ type: "SET_ACTIVE_CAMERA", camera });
 
@@ -209,7 +232,7 @@ const AgentPanel = () => {
   /**
    * Helper function to save simulation preferences to backend.
    * Similar to how GPU preferences are saved.
-   * 
+   *
    * @param preferenceData - Object with preference fields to save
    */
   const saveSimulationPreference = async (preferenceData: Record<string, string>) => {
@@ -243,12 +266,12 @@ const AgentPanel = () => {
   /**
    * Process action commands returned by the AI Agent.
    * Actions are executed silently (not shown in chat).
-   * 
+   *
    * Currently handles:
    *   - camera_change: Switches the 3D viewport camera via WebRTC
    *   - gpu_change: Switches the GPU configuration and updates UI + backend
    *   - simulation_change: Changes simulation panel settings (panel, zone, operation, variable)
-   * 
+   *
    * @param actions - Array of action objects from AI response
    */
   const processActions = async (actions: AgentAction[]) => {
@@ -256,7 +279,7 @@ const AgentPanel = () => {
     // This prevents multiple toggles if backend sends multiple actions that affect the same panel
     let simulationsPanelOpened = state.simulations;
     let configuratorPanelOpened = state.configurator;
-    
+
     for (const action of actions) {
       // Handle camera switch action
       if (action.type === 'camera_change' && action.camera_name) {
@@ -274,7 +297,7 @@ const AgentPanel = () => {
           console.warn(`[AgentPanel] Invalid camera_name: ${action.camera_name}`);
         }
       }
-      
+
       // Handle GPU change action
       if (action.type === 'gpu_change' && action.gpu_selection) {
         const gpuSelection = action.gpu_selection;
@@ -288,26 +311,18 @@ const AgentPanel = () => {
           }
           dispatch({ type: "SET_ACTIVE_CONFIG_MODE", activeConfigMode: "gpu" });
 
-          // Switch GPU via visibility toggling (same as configurator panel)
-          const GPU_PRIM_BASE = "/World/assembly_Bldg_Equipment/assembly_Bldg_Equipment/DSX_Bldg_Equipement/DS9_Z0S0_BLDG_EQUIPMENT/Assembly_HAC_GPU_BLDG_SR_Interactive";
-          const GPU_PRIM_MAP: Record<string, string> = {
-            "GB200": `${GPU_PRIM_BASE}/hall_GPUs_GB200`,
-            "GB300": `${GPU_PRIM_BASE}/hall_GPUs_GB300_standin`,
-          };
-          for (const [key, primPath] of Object.entries(GPU_PRIM_MAP)) {
-            await switchVisibility(primPath, key === gpuSelection);
-          }
+          await switchGpuVisibility(gpuSelection);
 
           // Update UI state so dropdown shows correct GPU selection
           const displayGpu = gpuDisplayMap[gpuSelection];
           if (displayGpu) {
             setSelectedGpu(displayGpu);
           }
-          
+
           // Save GPU preference to backend for persistence
           // This ensures the preference is stored in the database
           // Only save if user is authenticated
-          // 
+          //
           // SECURITY NOTE: The backend MUST verify that the user_id in the request body
           // matches the authenticated user from the token (either from cookies or Authorization header).
           // This prevents unauthorized users from modifying other users' preferences.
@@ -323,9 +338,9 @@ const AgentPanel = () => {
                   'Authorization': `Bearer ${auth.user?.id_token}`,
                 },
                 credentials: 'include', // Ensure cookies (id_token) are sent as fallback
-                body: JSON.stringify({ 
-                  user_id: userId, 
-                  gpu_selection: gpuSelection 
+                body: JSON.stringify({
+                  user_id: userId,
+                  gpu_selection: gpuSelection
                 }),
               });
               console.info(`[AgentPanel] GPU switched to ${gpuSelection} and saved for user ${userId}`);
@@ -340,7 +355,7 @@ const AgentPanel = () => {
           console.warn(`[AgentPanel] Invalid gpu_selection: ${action.gpu_selection}`);
         }
       }
-      
+
       // Handle simulation change action
       if (action.type === 'simulation_change') {
         // Open the simulations panel if it's not already visible (only once per batch)
@@ -348,7 +363,7 @@ const AgentPanel = () => {
           dispatch({ type: "TOGGLE_SIMULATIONS" });
           simulationsPanelOpened = true;
         }
-        
+
         // Switch to the specified panel/tab if provided
         if (action.panel) {
           if (VALID_SIMULATION_PANELS.includes(action.panel as SimulationPanelType)) {
@@ -360,7 +375,7 @@ const AgentPanel = () => {
             console.warn(`[AgentPanel] Invalid simulation panel: ${action.panel}`);
           }
         }
-        
+
         // Handle thermal-specific settings
         // Only apply thermal settings if:
         // 1. action.panel is explicitly 'thermal', OR
@@ -376,7 +391,7 @@ const AgentPanel = () => {
               console.warn(`[AgentPanel] Invalid thermal zone: ${action.zone}`);
             }
           }
-          
+
           if (action.operation) {
             if (VALID_THERMAL_OPERATIONS.includes(action.operation as ThermalOperation)) {
               setThermalOperation(action.operation as ThermalOperation);
@@ -387,7 +402,7 @@ const AgentPanel = () => {
               console.warn(`[AgentPanel] Invalid thermal operation: ${action.operation}`);
             }
           }
-          
+
           if (action.variable) {
             if (VALID_THERMAL_VARIABLES.includes(action.variable as ThermalVariable)) {
               setThermalVariable(action.variable as ThermalVariable);
@@ -399,7 +414,24 @@ const AgentPanel = () => {
             }
           }
         }
-        
+
+        // Handle start/stop thermal test (same as "Begin Test" button)
+        if (action.start_test !== undefined && (action.panel === 'thermal' || (!action.panel && activeSimulationTab === 'thermal'))) {
+          const CFD_LAYER_PATH = "/World/CFD_Layer/NV_DC_DS9_GB300_SinglePOD/CAE/IndeXVolume_Elements";
+          setThermalIsRunning(action.start_test);
+          await switchVisibility(CFD_LAYER_PATH, action.start_test);
+          console.info(`[AgentPanel] Thermal test ${action.start_test ? 'started' : 'stopped'}`);
+        }
+
+        // Handle heat load change (same as the slider in SimulationPanel)
+        if (action.heat_load !== undefined && (action.panel === 'thermal' || (!action.panel && activeSimulationTab === 'thermal'))) {
+          const clamped = Math.max(40, Math.min(100, Math.round(action.heat_load)));
+          setThermalHeatLoad(clamped);
+          const LOAD_LEVEL_PRIM = "/World/CFD_Layer/NV_DC_DS9_GB300_SinglePOD/CAE/IndeXVolume_Elements/Materials/DCDTMaterial/VolumeShader";
+          await setPrimAttribute(LOAD_LEVEL_PRIM, "inputs:load_level", clamped);
+          console.info(`[AgentPanel] Heat load set to ${clamped}%`);
+        }
+
         // Handle electrical-specific settings
         if (action.panel === 'electrical') {
           if (action.zone) {
@@ -412,7 +444,7 @@ const AgentPanel = () => {
               console.warn(`[AgentPanel] Invalid electrical zone: ${action.zone}`);
             }
           }
-          
+
           if (action.operation) {
             if (VALID_ELECTRICAL_OPERATIONS.includes(action.operation as ElectricalOperation)) {
               setElectricalOperation(action.operation as ElectricalOperation);
@@ -423,7 +455,7 @@ const AgentPanel = () => {
               console.warn(`[AgentPanel] Invalid electrical operation: ${action.operation}`);
             }
           }
-          
+
           if (action.variable) {
             if (VALID_ELECTRICAL_VARIABLES.includes(action.variable as ElectricalVariable)) {
               setElectricalVariable(action.variable as ElectricalVariable);
@@ -434,14 +466,57 @@ const AgentPanel = () => {
               console.warn(`[AgentPanel] Invalid electrical variable: ${action.variable}`);
             }
           }
+
+          // Handle electrical power failure test
+          if (action.electrical_test) {
+            const et = action.electrical_test;
+            if (et.playing !== undefined) {
+              setElectricalIsPlaying(et.playing);
+              console.info(`[AgentPanel] Electrical test ${et.playing ? 'started' : 'stopped'}`);
+            }
+            if (et.failed_rpps !== undefined) {
+              setElectricalFailedRpps(Math.max(0, Math.min(4, et.failed_rpps)));
+            }
+            if (et.load_percent !== undefined) {
+              setElectricalLoadPercent(Math.max(0, Math.min(100, et.load_percent)));
+            }
+            if (et.edp_setting !== undefined && (et.edp_setting === '1.2' || et.edp_setting === '1.5')) {
+              setElectricalEdpSetting(et.edp_setting as EdpSetting);
+            }
+          }
         }
       }
-      
+
+      // Handle per-RPP whip visibility
+      if (action.type === 'rpp_whip_visibility' && action.rpp_visible) {
+        const { sendRppWhipVisibility } = await import('@/streamMessages');
+        await sendRppWhipVisibility(action.rpp_visible as Record<number, boolean>);
+        console.info('[AgentPanel] RPP whip visibility updated:', action.rpp_visible);
+      }
+
+      // Handle isolation change (isolate POD / restore visibility)
+      if (action.type === 'isolation_change' && action.isolation) {
+        const iso = action.isolation as { isolate?: boolean; hide?: string[]; show?: string[] };
+        if (iso.hide) {
+          for (const path of iso.hide) {
+            await switchVisibility(path, false);
+            await new Promise(r => setTimeout(r, 200));
+          }
+        }
+        if (iso.show) {
+          for (const path of iso.show) {
+            await switchVisibility(path, true);
+            await new Promise(r => setTimeout(r, 200));
+          }
+        }
+        console.info(`[AgentPanel] Isolation ${iso.isolate ? 'applied' : 'restored'}: hide=${iso.hide?.length ?? 0}, show=${iso.show?.length ?? 0}`);
+      }
+
       // Handle site change action (country and region)
       if (action.type === 'site_change') {
         // Debug: Log the full action object to see what fields the backend sends
         console.log('[AgentPanel] site_change action received:', JSON.stringify(action, null, 2));
-        
+
         // Open the configurator panel if not already visible (only once per batch)
         if (!configuratorPanelOpened) {
           dispatch({ type: "TOGGLE_CONFIGURATOR" });
@@ -449,22 +524,22 @@ const AgentPanel = () => {
         }
         // Switch to site tab
         dispatch({ type: "SET_ACTIVE_CONFIG_MODE", activeConfigMode: "site" });
-        
+
         if (action.country) {
           // Validate country
           if (VALID_COUNTRIES.includes(action.country as Country)) {
             const country = action.country as Country;
-            
+
             // For Sweden, just set the country (no region needed)
             if (country === 'Sweden') {
               setSelectedCountry(country);
               setSelectedRegion(null);
               console.info(`[AgentPanel] Site changed to country: ${country}`);
-            } 
+            }
             // For United States, we need to handle region
             else if (country === 'United States') {
               setSelectedCountry(country);
-              
+
               // If region is provided and valid for the country, set it
               if (action.region) {
                 const validRegionsForCountry = SITE_OPTIONS[country];
@@ -488,12 +563,12 @@ const AgentPanel = () => {
           console.warn('[AgentPanel] site_change action missing required "country" field');
         }
       }
-      
+
       // Handle power change action
       if (action.type === 'power_change') {
         // Debug: Log the full action object to see what fields the backend sends
         console.log('[AgentPanel] power_change action received:', JSON.stringify(action, null, 2));
-        
+
         // Open the configurator panel if not already visible (only once per batch)
         if (!configuratorPanelOpened) {
           dispatch({ type: "TOGGLE_CONFIGURATOR" });
@@ -501,7 +576,7 @@ const AgentPanel = () => {
         }
         // Switch to power tab
         dispatch({ type: "SET_ACTIVE_CONFIG_MODE", activeConfigMode: "power" });
-        
+
         if (action.power_source) {
           if (VALID_POWER_SOURCES.includes(action.power_source as Power)) {
             setSelectedPower(action.power_source as Power);
@@ -522,18 +597,18 @@ const AgentPanel = () => {
 
   /**
    * Send a user message to the AI Agent backend and process the response.
-   * 
+   *
    * Flow:
    *   1. Add user message to chat immediately (optimistic UI)
    *   2. Send POST request to AI backend with JWT authentication
    *   3. Add assistant response to chat
    *   4. Execute any actions from the response (camera changes, etc.)
    *   5. Handle errors gracefully with user-friendly message
-   * 
+   *
    * SECURITY: The request includes the user's id_token in the Authorization header.
    * The backend MUST validate this JWT token and ensure the user_id in the request
    * body matches the authenticated user from the token's 'sub' claim.
-   * 
+   *
    * @param content - The user's message text
    */
   const handleSendMessage = async (content: string) => {
@@ -605,7 +680,7 @@ const AgentPanel = () => {
       const requestBody = JSON.stringify({
         message: content,
         user_id: userId,
-        current_camera: state.activeCamera,
+        current_camera: state.activeCamera ?? state.savedCamera,
         history,
       });
 
@@ -749,18 +824,18 @@ const AgentPanel = () => {
           </button>
         </div>
       </div>
-      
+
       {/* Main content: message list and input */}
       <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
-        <MessageList 
-          messages={messages} 
+        <MessageList
+          messages={messages}
           isLoading={isLoading}
           loadingStatus={loadingStatus}
-          onPromptClick={handlePromptClick} 
+          onPromptClick={handlePromptClick}
         />
-        <MessageInput 
-          onSend={handleSendMessage} 
-          disabled={isLoading} 
+        <MessageInput
+          onSend={handleSendMessage}
+          disabled={isLoading}
         />
       </div>
     </div>

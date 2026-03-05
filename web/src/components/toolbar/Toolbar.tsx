@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import dsxLogo from "@/assets/NV-Symbol.png";
 import { useUI, CameraName } from "@/context/UIContext";
 import IconButtonNative from "@/components/panels/IconButtonNative";
-import { switchCamera } from "@/streamMessages";
+import { switchCamera, syncAgentState } from "@/streamMessages";
 import { useConfig } from "@/context/DS9Context";
 import { TooltipWrapper } from "../TooltipWrapper";
 import { ToggleButtonNative } from "../panels/ToggleButtonNative";
@@ -31,6 +31,7 @@ const Toolbar = () => {
     const handleCameraSelect = async (camera: string) => {
         dispatch({ type: "SET_ACTIVE_CAMERA", camera: camera as CameraName });
         switchCamera(`/World/interactive_cameras/${camera}`);
+        syncAgentState({ current_camera: camera });
     };
 
     return (
@@ -70,7 +71,7 @@ const Toolbar = () => {
                         </TooltipWrapper>
 
                         <PopoverContent side="right" sideOffset={20}>
-                            <RadioGroup defaultValue={state.activeCamera} onValueChange={handleCameraSelect}>
+                            <RadioGroup value={state.activeCamera ?? ""} onValueChange={handleCameraSelect}>
                                 {["camera_int_datahall_01", "camera_int_datahall_02", "camera_int_datahall_03", "camera_int_datahall_04", "camera_ext_default_01", "camera_ext_default_02", "camera_ext_default_03", "camera_ext_default_04"].map((camera) => (
                                     <div key={camera} className="flex items-center space-x-2">
                                         <RadioGroupItem value={camera} id={camera} />

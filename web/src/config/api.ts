@@ -36,3 +36,10 @@ export const CHAT_STREAM_API_URL = `${CHAT_API_URL}/stream`;
  * Used to persist GPU selection when AI agent changes it.
  */
 export const PREFERENCES_API_URL = CHAT_API_URL.replace('/chat', '/preferences');
+
+/**
+ * Backend AI Agent state sync endpoint.
+ * Frontend POSTs UI state changes so the agent stays aware of
+ * user-driven GPU switches, simulation tab changes, test start/stop, etc.
+ */
+export const AGENT_STATE_URL = CHAT_API_URL.replace('/chat', '/state');

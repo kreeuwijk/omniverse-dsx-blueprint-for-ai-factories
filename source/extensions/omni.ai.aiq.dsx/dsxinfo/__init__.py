@@ -15,7 +15,7 @@ _COMPONENT_ALIASES: Dict[str, List[str]] = {
     "hot_aisle":      ["hall_hacs", "hac"],
     "containment":    ["hall_hacs", "hac"],
     "hac":            ["hall_hacs", "hac"],
-    # Racks / GPUs — two groups: hall_GPUs_GB200 and hall_GPUs_GB300_standin
+    # Racks / GPUs — two groups: hall_GPUs_GB200 and hall_GPUs_GB300
     "rack":           ["hall_GPUs_GB200", "hall_GPUs_GB300"],
     "gpu":            ["hall_GPUs_GB200", "hall_GPUs_GB300"],
     "deployment_unit":["hall_GPUs_GB200", "hall_GPUs_GB300"],

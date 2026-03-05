@@ -37,6 +37,9 @@ export type ElectricalOperation = 'Normal' | 'Loss of 1 utility' | 'Loss of 1 ga
 /** Valid electrical variable values */
 export type ElectricalVariable = 'Voltage' | 'Current' | 'P' | 'Q' | 'Power Factor' | 'THDi' | 'THDv' | 'Availability';
 
+/** Valid EDP setting values for the power failure test */
+export type EdpSetting = '1.2' | '1.5';
+
 // ---------------------------------------------------------
 // Valid Values Arrays (for validation)
 // ---------------------------------------------------------
@@ -79,6 +82,16 @@ type SimulationContextType = {
   setElectricalOperation: (operation: ElectricalOperation) => void;
   electricalVariable: ElectricalVariable;
   setElectricalVariable: (variable: ElectricalVariable) => void;
+
+  // Electrical power failure test state (shared with AI agent)
+  electricalIsPlaying: boolean;
+  setElectricalIsPlaying: (playing: boolean) => void;
+  electricalFailedRpps: number;
+  setElectricalFailedRpps: (count: number) => void;
+  electricalLoadPercent: number;
+  setElectricalLoadPercent: (percent: number) => void;
+  electricalEdpSetting: EdpSetting;
+  setElectricalEdpSetting: (setting: EdpSetting) => void;
 };
 
 // ---------------------------------------------------------
@@ -103,6 +116,12 @@ export const SimulationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
   const [electricalOperation, setElectricalOperation] = useState<ElectricalOperation>('Normal');
   const [electricalVariable, setElectricalVariable] = useState<ElectricalVariable>('Voltage');
 
+  // Electrical power failure test state (lifted from PowerFailureTest for AI agent access)
+  const [electricalIsPlaying, setElectricalIsPlaying] = useState<boolean>(false);
+  const [electricalFailedRpps, setElectricalFailedRpps] = useState<number>(0);
+  const [electricalLoadPercent, setElectricalLoadPercent] = useState<number>(0);
+  const [electricalEdpSetting, setElectricalEdpSetting] = useState<EdpSetting>('1.5');
+
   const value = useMemo(() => ({
     activeSimulationTab,
     setActiveSimulationTab,
@@ -122,6 +141,14 @@ export const SimulationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     setElectricalOperation,
     electricalVariable,
     setElectricalVariable,
+    electricalIsPlaying,
+    setElectricalIsPlaying,
+    electricalFailedRpps,
+    setElectricalFailedRpps,
+    electricalLoadPercent,
+    setElectricalLoadPercent,
+    electricalEdpSetting,
+    setElectricalEdpSetting,
   }), [
     activeSimulationTab,
     thermalZone,
@@ -132,6 +159,10 @@ export const SimulationProvider: React.FC<{ children: React.ReactNode }> = ({ ch
     electricalZone,
     electricalOperation,
     electricalVariable,
+    electricalIsPlaying,
+    electricalFailedRpps,
+    electricalLoadPercent,
+    electricalEdpSetting,
   ]);
 
   return (

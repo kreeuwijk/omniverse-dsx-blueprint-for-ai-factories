@@ -73,12 +73,12 @@ class TestShowComponent(omni.kit.test.AsyncTestCase):
         self.assertIn("hidden", result)
         self.assertEqual(_get_visibility(stage, hac_path), "invisible")
 
-    async def test_unknown_component_falls_back_to_name_search(self):
+    async def test_unknown_component_skips(self):
         stage = Usd.Stage.CreateInMemory()
         stage.DefinePrim("/World/my_widget", "Xform")
         with _make_context(stage):
             result = _vis_mod.show_component("my_widget", False)
-        self.assertIn("hidden", result)
+        self.assertIn("0 prims", result)
 
     async def test_exception_returns_error_string(self):
         with patch.object(_vis_mod, "_set_visibility", side_effect=RuntimeError("boom")), \
@@ -90,31 +90,39 @@ class TestShowComponent(omni.kit.test.AsyncTestCase):
 # ── stub functions ─────────────────────────────────────────────────────────
 
 
-class TestStubFunctions(omni.kit.test.AsyncTestCase):
-    async def test_isolate_pod_rpps(self):
-        self.assertIn("TODO", _vis_mod.isolate_pod_rpps())
+class TestIsolationFunctions(omni.kit.test.AsyncTestCase):
+    async def test_isolate_pod_rpps_sets_flag(self):
+        result = _vis_mod.isolate_pod_rpps()
+        self.assertIn("Isolating", result)
+        action = _vis_mod.get_and_clear_isolation_action()
+        self.assertIsNotNone(action)
+        self.assertTrue(action["isolate"])
+        self.assertGreater(len(action["hide"]), 0)
+        self.assertGreater(len(action["show"]), 0)
 
-    async def test_restore_pod_visibility(self):
-        self.assertIn("TODO", _vis_mod.restore_pod_visibility())
+    async def test_restore_pod_visibility_sets_flag(self):
+        result = _vis_mod.restore_pod_visibility()
+        self.assertIn("Restoring", result)
+        action = _vis_mod.get_and_clear_isolation_action()
+        self.assertIsNotNone(action)
+        self.assertFalse(action["isolate"])
 
 
 # ── visualize_cfd ──────────────────────────────────────────────────────────
 
 
 class TestVisualizeCfd(omni.kit.test.AsyncTestCase):
-    async def test_show_navigates_to_camera(self):
-        cam_mock = MagicMock()
-        cam_mock.navigate_to_waypoint = MagicMock(return_value="Navigated to cfd")
-        with patch.object(_vis_mod, "show_cfd_results", return_value="CFD shown"), \
-             patch.dict("sys.modules", {"dsxcode.camera_utils": cam_mock}):
-            result = _vis_mod.visualize_cfd(True)
-        self.assertIn("CFD shown", result)
-        self.assertIn("Navigated", result)
+    async def test_show_sets_flag(self):
+        result = _vis_mod.visualize_cfd(True)
+        self.assertIn("started", result)
+        action = _vis_mod.get_and_clear_cfd_action()
+        self.assertTrue(action)
 
-    async def test_hide_does_not_navigate(self):
-        with patch.object(_vis_mod, "show_cfd_results", return_value="CFD hidden"):
-            result = _vis_mod.visualize_cfd(False)
-        self.assertEqual(result, "CFD hidden")
+    async def test_hide_sets_flag(self):
+        result = _vis_mod.visualize_cfd(False)
+        self.assertIn("stopped", result)
+        action = _vis_mod.get_and_clear_cfd_action()
+        self.assertFalse(action)
 
 
 # ── _set_visibility ────────────────────────────────────────────────────────
@@ -145,12 +153,12 @@ class TestSetVisibility(omni.kit.test.AsyncTestCase):
             count = _vis_mod._set_visibility("Hot-Aisle", False)
         self.assertEqual(count, 1)
 
-    async def test_falls_back_to_name_search(self):
+    async def test_unknown_key_returns_zero(self):
         stage = Usd.Stage.CreateInMemory()
         stage.DefinePrim("/World/custom_thing", "Xform")
         with _make_context(stage):
             count = _vis_mod._set_visibility("custom_thing", False)
-        self.assertGreaterEqual(count, 1)
+        self.assertEqual(count, 0)
 
 
 # ── _set_prim_visible_by_path ──────────────────────────────────────────────
@@ -197,40 +205,7 @@ class TestSetPrimVisibleByPath(omni.kit.test.AsyncTestCase):
         self.assertEqual(result, 0)  # no-op since already invisible
 
 
-# ── _set_prims_visible_by_name ─────────────────────────────────────────────
-
-
-class TestSetPrimsVisibleByName(omni.kit.test.AsyncTestCase):
-    async def test_no_stage(self):
-        ctx = MagicMock()
-        ctx.get_stage.return_value = None
-        with patch.object(_vis_mod.omni.usd, "get_context", return_value=ctx):
-            result = _vis_mod._set_prims_visible_by_name("cfd", True)
-        self.assertEqual(result, 0)
-
-    async def test_matches_by_pattern(self):
-        stage = Usd.Stage.CreateInMemory()
-        stage.DefinePrim("/World/cfd_layer", "Xform")
-        with _make_context(stage):
-            count = _vis_mod._set_prims_visible_by_name("cfd", False)
-        self.assertEqual(count, 1)
-
-    async def test_no_match(self):
-        stage = Usd.Stage.CreateInMemory()
-        stage.DefinePrim("/World/unrelated", "Xform")
-        with _make_context(stage):
-            count = _vis_mod._set_prims_visible_by_name("cfd", True)
-        self.assertEqual(count, 0)
-
-    async def test_raw_pattern_fallback(self):
-        stage = Usd.Stage.CreateInMemory()
-        stage.DefinePrim("/World/my_custom_widget", "Xform")
-        with _make_context(stage):
-            count = _vis_mod._set_prims_visible_by_name("custom_widget", False)
-        self.assertEqual(count, 1)
-
-
-# ── switch_rack_variant (lightweight stub — actual switch goes through WebRTC)
+# ── switch_rack_variant (actual switch goes through WebRTC via deterministic flag)
 
 
 class TestSwitchRackVariant(omni.kit.test.AsyncTestCase):

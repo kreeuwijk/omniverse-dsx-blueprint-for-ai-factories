@@ -26,7 +26,8 @@ interface PanelState {
 }
 
 interface ViewState {
-  activeCamera: CameraName;
+  activeCamera: CameraName | null;
+  savedCamera: CameraName;
   activeConfigMode: ConfigMode;
 }
 
@@ -39,7 +40,8 @@ export type Action =
   | { type: "TOGGLE_VIEWER" }
   | { type: "TOGGLE_AGENT" }
   | { type: "SET_ACTIVE_CAMERA"; camera: CameraName }
-  | { type: "SET_ACTIVE_CONFIG_MODE"; activeConfigMode: ConfigMode}
+  | { type: "SET_ACTIVE_CONFIG_MODE"; activeConfigMode: ConfigMode }
+  | { type: "CLEAR_ACTIVE_CAMERA" }
 
 const initialUIState: UIState = {
   configurator: true,
@@ -48,6 +50,7 @@ const initialUIState: UIState = {
   viewer: false,
   agent: false,
   activeCamera: 'camera_int_datahall_01',
+  savedCamera: 'camera_int_datahall_01',
   activeConfigMode: "site" // default to site configurator
 };
 
@@ -55,46 +58,52 @@ function uiReducer(state: UIState, action: Action): UIState {
   switch (action.type) {
     case "TOGGLE_VIEWER":
       if (!state.viewer) {
+        const restoreCamera = state.simulations ? state.savedCamera : state.activeCamera;
         return {
           configurator: false,
           analytics: false,
           simulations: false,
           viewer: true,
           agent: state.agent,
-          activeCamera: state.activeCamera,
-          // If a user is on the site configurator, it will switch to the gpu configurator. Otherwise, it will keep the active configurator mode.
+          activeCamera: restoreCamera,
+          savedCamera: state.savedCamera,
           activeConfigMode: state.activeConfigMode === "site" ? "gpu" : state.activeConfigMode
         };
       }
-      return { ...initialUIState, agent: state.agent, activeCamera: state.activeCamera };
+      return { ...initialUIState, agent: state.agent, activeCamera: state.activeCamera, savedCamera: state.savedCamera };
 
     case "TOGGLE_CONFIGURATOR":
-      if (state.viewer) return { ...initialUIState, configurator: true, agent: state.agent, activeCamera: state.activeCamera };
+      if (state.viewer) return { ...initialUIState, configurator: true, agent: state.agent, activeCamera: state.activeCamera, savedCamera: state.savedCamera };
       if (state.simulations)
-        return { ...state, configurator: !state.configurator, simulations: false };
+        return { ...state, configurator: !state.configurator, simulations: false, activeCamera: state.savedCamera };
       return { ...state, configurator: !state.configurator };
 
     case "TOGGLE_ANALYTICS":
-      if (state.viewer) return { ...initialUIState, analytics: true, agent: state.agent, activeCamera: state.activeCamera };
+      if (state.viewer) return { ...initialUIState, analytics: true, agent: state.agent, activeCamera: state.activeCamera, savedCamera: state.savedCamera };
       return { ...state, analytics: !state.analytics };
 
     case "TOGGLE_SIMULATIONS":
-      if (state.viewer) return { ...initialUIState, simulations: true, agent: state.agent, activeCamera: state.activeCamera };
+      if (state.viewer) return { ...initialUIState, simulations: true, agent: state.agent, activeCamera: null, savedCamera: state.activeCamera ?? state.savedCamera };
 
       if (!state.simulations) {
         return {
           ...state,
           simulations: true,
           configurator: false,
+          savedCamera: state.activeCamera ?? state.savedCamera,
+          activeCamera: null,
         };
       }
-      return { ...state, simulations: false };
+      return { ...state, simulations: false, activeCamera: state.savedCamera };
 
     case "TOGGLE_AGENT":
       return { ...state, agent: !state.agent };
 
     case "SET_ACTIVE_CAMERA":
-      return { ...state, activeCamera: action.camera };
+      return { ...state, activeCamera: action.camera, savedCamera: action.camera };
+
+    case "CLEAR_ACTIVE_CAMERA":
+      return { ...state, activeCamera: null };
 
     case "SET_ACTIVE_CONFIG_MODE":
       return { ...state, activeConfigMode: action.activeConfigMode };
@@ -130,10 +139,11 @@ export const UIProvider: React.FC<{ children: React.ReactNode }> = ({
   const viewValue = useMemo(() => ({
     state: {
       activeCamera: state.activeCamera,
+      savedCamera: state.savedCamera,
       activeConfigMode: state.activeConfigMode,
     },
     dispatch,
-  }), [state.activeCamera, state.activeConfigMode, dispatch]);
+  }), [state.activeCamera, state.savedCamera, state.activeConfigMode, dispatch]);
 
   return (
     <PanelContext.Provider value={panelValue}>

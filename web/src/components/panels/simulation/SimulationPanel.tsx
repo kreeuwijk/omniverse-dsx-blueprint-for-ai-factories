@@ -1,4 +1,4 @@
-import { useEffect } from "react"
+import { useEffect, useRef } from "react"
 import { Item, ItemMedia, ItemContent, ItemActions } from "../../ui/item"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "../../ui/tabs"
 import { Label } from "../../ui/label"
@@ -8,7 +8,7 @@ import { SIMULATION_OPTIONS } from "@/data/options"
 import { useSimulation, SimulationPanel as SimulationPanelType } from "@/context/SimulationContext"
 import { useUI } from "@/context/UIContext"
 import { useSavePreference } from "@/hooks/useSavePreference"
-import { switchCamera, switchVisibility, setPrimAttribute } from "@/streamMessages"
+import { switchCamera, switchVisibility, setPrimAttribute, syncAgentState } from "@/streamMessages"
 import SimulationPic from "./simulation.png"
 import PowerFailureTest from "./PowerFailureTest"
 
@@ -24,6 +24,10 @@ const CFD_LAYER_PATH = "/World/CFD_Layer/NV_DC_DS9_GB300_SinglePOD/CAE/IndeXVolu
 const LOAD_LEVEL_PRIM = "/World/CFD_Layer/NV_DC_DS9_GB300_SinglePOD/CAE/IndeXVolume_Elements/Materials/DCDTMaterial/VolumeShader"
 const LOAD_LEVEL_ATTR = "inputs:load_level"
 
+// ─── Electrical Constants ───────────────────────────────────────────────────
+const RPP_CAMERA_PATH = "/World/interactive_cameras/rpp_cameras"
+const DEFAULT_CAMERA_PATH = "/World/interactive_cameras/camera_int_datahall_01"
+
 const SimulationPanel = () => {
     // Get simulation state from context (allows AI Agent to control these values)
     const {
@@ -38,30 +42,50 @@ const SimulationPanel = () => {
     } = useSimulation()
 
     // UI context — controls whether the globe or USD stream is visible
-    const { dispatch } = useUI();
+    const { state, dispatch } = useUI();
+
+    // Track savedCamera via ref so the unmount cleanup always has the latest value
+    const savedCameraRef = useRef(state.savedCamera);
+    useEffect(() => { savedCameraRef.current = state.savedCamera; });
+
+    // On unmount, restore the user's previously selected camera
+    useEffect(() => {
+        return () => {
+            const cam = savedCameraRef.current;
+            if (cam) {
+                switchCamera(`/World/interactive_cameras/${cam}`);
+            }
+        };
+    }, []);
 
     // Custom hook for saving preferences (handles authentication and API calls)
     const savePreference = useSavePreference();
 
-    // When thermal tab is active with Data Hall zone:
-    //   - switch from globe to USD stream (SET_ACTIVE_CONFIG_MODE → "gpu")
-    //   - activate the CFD camera
-    // When leaving thermal tab:
-    //   - stop the test and hide the CFD layer if it was running
-    //   - switch camera back to data hall camera 1
     useEffect(() => {
         if (activeSimulationTab === 'thermal' && thermalZone === 'Data Hall') {
             dispatch({ type: "SET_ACTIVE_CONFIG_MODE", activeConfigMode: "gpu" });
             switchCamera(CFD_CAMERA_PATH);
+        } else if (activeSimulationTab === 'electrical') {
+            dispatch({ type: "SET_ACTIVE_CONFIG_MODE", activeConfigMode: "gpu" });
+            switchCamera(RPP_CAMERA_PATH);
         } else {
-            // If the thermal test was running, stop it and hide the CAE layer
             if (thermalIsRunning) {
                 setThermalIsRunning(false);
                 switchVisibility(CFD_LAYER_PATH, false);
             }
-            switchCamera("/World/interactive_cameras/camera_int_datahall_01");
+            switchCamera(DEFAULT_CAMERA_PATH);
         }
     }, [activeSimulationTab, thermalZone, dispatch]);
+
+    // Sync simulation state to agent backend so it stays aware of UI changes
+    useEffect(() => {
+        syncAgentState({
+            active_simulation: activeSimulationTab,
+            thermal_is_running: thermalIsRunning,
+            thermal_zone: thermalZone,
+            thermal_variable: thermalVariable,
+        });
+    }, [activeSimulationTab, thermalIsRunning, thermalZone, thermalVariable]);
 
     // Handler for simulation tab change
     const handleSimulationTabChange = (tab: SimulationPanelType) => {
@@ -73,6 +97,7 @@ const SimulationPanel = () => {
     const handleThermalHeatLoadChange = (value: number) => {
         setThermalHeatLoad(value);
         setPrimAttribute(LOAD_LEVEL_PRIM, LOAD_LEVEL_ATTR, value);
+        syncAgentState({ heat_load: value });
     };
 
     // Start/Stop handler — toggles visibility of /World/CFD_Layer

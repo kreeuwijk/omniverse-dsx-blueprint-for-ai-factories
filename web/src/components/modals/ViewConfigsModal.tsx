@@ -13,13 +13,22 @@ const ViewConfigsModal = () => {
     const showViewer = state.viewer;
 
     const savedConfigsMock = savedConfigs.map(
-        ({ gpu, name, power, site }) => ({
-            ...CONFIGS_DATA[0],
-            computePlatform: gpu,
-            location: site,
-            powerGen: power,
-            config: name,
-        })
+        ({ gpu, name, power, site }) => {
+            const match =
+                CONFIGS_DATA.find(
+                    (c) =>
+                        c.computePlatform === gpu &&
+                        c.location.toLowerCase() === site.toLowerCase()
+                ) ?? CONFIGS_DATA[0];
+
+            return {
+                ...match,
+                config: name,
+                computePlatform: gpu,
+                location: site,
+                powerGen: power,
+            };
+        }
     );
 
     const {

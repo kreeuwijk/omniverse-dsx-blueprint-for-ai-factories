@@ -14,13 +14,14 @@ import json
 import omni.ext
 import omni.usd
 import carb.events
-from pxr import UsdGeom
+from pxr import Usd, UsdGeom
 from omni.kit.viewport.utility import get_active_viewport_camera_string
 
 from .visibility import set_visibility_for_item
 from .variant import switch_variant_architecture
 from .camera import set_active_camera
 from .attribute import set_prim_attribute
+from .whip_color import update_whip_colors, reset_whip_colors, set_rpp_whip_visibility
 
 __all__ = ["ManagerExtension"]
 
@@ -89,12 +90,18 @@ class ManagerExtension(omni.ext.IExt):
             if stage_url:
                 ctx.set_pickable("/", False)
 
-                # Build camera map and variant cache on stage open
+                # Build camera map and variant cache on stage open,
+                # and hide mesh geometry under camera prims so the camera
+                # models don't render (the viewport "scene.cameras.visible"
+                # setting only controls the wireframe gizmo, not authored meshes).
                 self._camera_map = {}
                 self._variant_cache = {}
                 for prim in stage.Traverse():
                     if prim.IsA(UsdGeom.Camera):
                         self._camera_map[prim.GetName()] = str(prim.GetPath())
+                        for desc in Usd.PrimRange(prim):
+                            if desc != prim and desc.IsA(UsdGeom.Gprim):
+                                UsdGeom.Imageable(desc).MakeInvisible()
                     vs_names = prim.GetVariantSets().GetNames()
                     if vs_names:
                         self._variant_cache[str(prim.GetPath())] = vs_names
@@ -151,5 +158,24 @@ class ManagerExtension(omni.ext.IExt):
             value = data.get("value")
             print(f"[manager] SetAttribute: {prim_path}.{attr_name} = {value}")
             set_prim_attribute(stage, prim_path, attr_name, value)
+        elif command_name == "powerFailure":
+            data = _parse_json_message(message)
+            playing = data.get("playing", False)
+            if playing:
+                power_a = float(data.get("powerA", 0))
+                power_b = float(data.get("powerB", 0))
+                power_c = float(data.get("powerC", 0))
+                power_d = float(data.get("powerD", 0))
+                rpp_wattage = float(data.get("rppWattage", 500))
+                print(f"[manager] Power failure: A={power_a}, B={power_b}, C={power_c}, D={power_d}, RPP={rpp_wattage}")
+                update_whip_colors(power_a, power_b, power_c, power_d, rpp_wattage)
+            else:
+                print("[manager] Power failure test stopped, resetting whip colors.")
+                reset_whip_colors()
+        elif command_name == "rppWhipVisibility":
+            data = _parse_json_message(message)
+            rpp_visible = {int(k): bool(v) for k, v in data.items()}
+            print(f"[manager] RPP whip visibility: {rpp_visible}")
+            set_rpp_whip_visibility(rpp_visible)
         else:
             print(f"[manager] Unknown command: {command_name}")

@@ -59,7 +59,7 @@ fetch."platform:linux-x86_64".before_pull_commands = [
 fetch."platform:windows-x86_64".before_pull_commands = [
     ["powershell", "-Command", "New-Item -ItemType Directory -Path ${root}/source/apps -ErrorAction SilentlyContinue", ";", "Write-Host 'Done'"],
     ["git", "-C", "${root}", "submodule", "update", "--init", "--recursive"],
-    ["powershell", "-NoProfile", "-Command", "if ((Test-Path '${root}/deps/kit-cae') -and -not (Test-Path '${root}/deps/kit-cae/_build')) { Write-Host '[DSX] Building kit-cae submodule (schema + extensions)...'; Push-Location '${root}/deps/kit-cae'; & ./repo.bat schema; if ($LASTEXITCODE -ne 0) { Pop-Location; exit 1 }; & ./repo.bat build -r; Pop-Location }"],
+    ["powershell", "-NoProfile", "-Command", "if ((Test-Path '${root}/deps/kit-cae') -and -not (Test-Path '${root}/deps/kit-cae/_build')) { Write-Host '[DSX] Building kit-cae submodule (schema + extensions)...'; Push-Location '${root}/deps/kit-cae'; $$schemaFlag = ''; $$buildArgs = @('build', '-r'); if (Test-Path 'C:\\Program Files\\Microsoft Visual Studio\\2022') { $$schemaFlag = '--vs2022'; $$buildArgs = @('--set-token', 'vs_version:vs2022', 'build', '-r') }; & ./repo.bat schema $$schemaFlag; if ($$LASTEXITCODE -ne 0) { Pop-Location; exit 1 }; & ./repo.bat @buildArgs; if ($$LASTEXITCODE -ne 0) { Pop-Location; exit 1 }; Pop-Location }"],
 ]
 
 # If caching do not try to cache extensions. These will come from the NGC Kit Extension Registry.
@@ -75,8 +75,10 @@ enabled = true
 # This is needed if C++ compilation is needed on Windows, and repo_build.build.enabled is set to true.
 link_host_toolchain = true
 
-# Filter on Visual Studio version. Use vs2019 to match Kit-CAE's Boost v142 toolset dependency.
-vs_version = "vs2019"
+# Filter on Visual Studio version. Empty string auto-detects the installed VS.
+# Kit-CAE's Boost v142 toolset dependency is handled by kit-cae's own premake5.lua
+# which sets BOOST_LIB_TOOLSET="vc142" explicitly.
+vs_version = ""
 
 # Visual Studio path; This will be used if the user would like to point to a specific VS installation rather than rely on heuristic locating.
 # vs_path = "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\"

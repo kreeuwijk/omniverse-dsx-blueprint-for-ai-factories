@@ -1,7 +1,9 @@
-import { useState, useMemo } from "react"
+import { useMemo, useEffect, useRef } from "react"
 import { Button } from "../../ui/button"
 import { Label } from "../../ui/label"
 import { RadioGroup, RadioGroupItem } from "../../ui/radio-group"
+import { sendPowerFailureData, syncAgentState } from "../../../streamMessages"
+import { useSimulation } from "@/context/SimulationContext"
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -15,23 +17,9 @@ type BuswayMatrixRow = {
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
-/** WIP (Whip) power lookup: platform → feeder → EDP → max kW */
-const WIP_INFO: Record<string, Record<string, Record<string, number>>> = {
-    blackwell: {
-        '60': { '1.2': 146, '1.5': 173 },
-        '100': { '1.2': 146, '1.5': 173 },
-    },
-    blackwell_ultra: {
-        '60': { '1.2': 176, '1.5': 208 },
-        '100': { '1.2': 176, '1.5': 208 },
-    },
-}
-
-/** Default configuration values (matches dcdt defaults) */
-const DEFAULT_RPP_KW = 500
-const DEFAULT_FEEDER = 60
-const DEFAULT_PLATFORM = 'blackwell'
-const PLATFORM_LABEL = 'Grace Blackwell'
+const RPP_KW = 500
+const FEEDER = 60
+const MAX_WIP_POWER: Record<string, number> = { '1.2': 146, '1.5': 173 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -130,28 +118,23 @@ const BlankTable = () => (
 // ─── Main Component ──────────────────────────────────────────────────────────
 
 export default function PowerFailureTest() {
-    // Test state
-    const [isPlaying, setIsPlaying] = useState(false)
-    const [failedBusways, setFailedBusways] = useState(0)
-    const [loadPercent, setLoadPercent] = useState(0)
-    const [edpSetting, setEdpSetting] = useState<'1.2' | '1.5'>('1.5')
+    const {
+        electricalIsPlaying: isPlaying,
+        setElectricalIsPlaying: setIsPlaying,
+        electricalFailedRpps: failedBusways,
+        setElectricalFailedRpps: setFailedBusways,
+        electricalLoadPercent: loadPercent,
+        setElectricalLoadPercent: setLoadPercent,
+        electricalEdpSetting: edpSetting,
+        setElectricalEdpSetting: setEdpSetting,
+    } = useSimulation()
 
-    // Configuration (read-only display values)
-    const rppKw = DEFAULT_RPP_KW
-    const feeder = DEFAULT_FEEDER
-    const platform = DEFAULT_PLATFORM
-
-    // ── Calculations ─────────────────────────────────────────────────────────
-
-    // Max load depends on EDP setting
     const maxLoadKw = edpSetting === '1.5' ? 1531 : 1316
 
-    // Power per active busway = total load spread across remaining busways
     const power = failedBusways < 4
         ? Math.round(((loadPercent / 100) * maxLoadKw) / (4 - failedBusways))
         : 0
 
-    // Build the 4-busway matrix (A, B, C, D)
     const matrix = useMemo(() => {
         const voltageData = [randPh(loadPercent), randPh(loadPercent), randPh(loadPercent), randPh(loadPercent)]
         const currentData = voltageData.map(v => calcCurrent(power, v))
@@ -161,16 +144,15 @@ export default function PowerFailureTest() {
                 ph: voltageData[i],
                 current: currentData[i],
                 power,
-                overloaded: power > rppKw,
+                overloaded: power > RPP_KW,
                 failed: failedBusways > i,
             }
             return acc
         }, {} as Record<string, BuswayMatrixRow>)
-    }, [failedBusways, loadPercent, power, rppKw])
+    }, [failedBusways, loadPercent, power])
 
-    // WIP (Whip) feeder loading calculation
-    const maxWipPower = WIP_INFO[platform][String(feeder)][edpSetting]
-    const wipCapacity = feeder === 60 ? 33 : 57.5
+    const maxWipPower = MAX_WIP_POWER[edpSetting]
+    const wipCapacity = FEEDER === 60 ? 33 : 57.5
     const wipKw = loadPercent > 0 && failedBusways < 4
         ? Math.round(((loadPercent / 100) * maxWipPower) / (8 - failedBusways * 2))
         : 0
@@ -178,7 +160,6 @@ export default function PowerFailureTest() {
     const wipFail = wipKw === 0
     const wipOverloaded = wipPercent > 100
 
-    // Status label
     let status = failedBusways > 3
         ? 'Offline'
         : failedBusways > 0
@@ -192,13 +173,58 @@ export default function PowerFailureTest() {
         status = '-'
     }
 
+    // ── Send power data to Kit for whip coloring ─────────────────────────────
+
+    const prevSentRef = useRef<string>("")
+
+    useEffect(() => {
+        if (!isPlaying) {
+            const resetKey = "reset"
+            if (prevSentRef.current !== resetKey) {
+                prevSentRef.current = resetKey
+                sendPowerFailureData({
+                    playing: false,
+                    powerA: 0, powerB: 0, powerC: 0, powerD: 0,
+                    rppWattage: RPP_KW,
+                    failedBusways: 0,
+                })
+            }
+            return
+        }
+
+        const powerA = matrix.a.failed ? -1 : matrix.a.power
+        const powerB = matrix.b.failed ? -1 : matrix.b.power
+        const powerC = matrix.c.failed ? -1 : matrix.c.power
+        const powerD = matrix.d.failed ? -1 : matrix.d.power
+
+        const key = `${powerA},${powerB},${powerC},${powerD},${RPP_KW},${failedBusways}`
+        if (prevSentRef.current === key) return
+        prevSentRef.current = key
+
+        sendPowerFailureData({
+            playing: true,
+            powerA, powerB, powerC, powerD,
+            rppWattage: RPP_KW,
+            failedBusways,
+        })
+    }, [isPlaying, matrix, failedBusways])
+
+    // Sync electrical test state to agent backend
+    useEffect(() => {
+        syncAgentState({
+            electrical_is_running: isPlaying,
+            electrical_failed_rpps: failedBusways,
+            electrical_load_percent: loadPercent,
+            electrical_edp_setting: edpSetting,
+        });
+    }, [isPlaying, failedBusways, loadPercent, edpSetting])
+
     // ── Render ───────────────────────────────────────────────────────────────
 
     return (
         <div className="flex flex-col gap-6 text-sm">
-            {/* Description */}
             <p className="text-xs text-muted-foreground leading-relaxed">
-                Power Failure: Disable multiple RPPs and adjust the load and EDP settings. Observe how these changes impact the power system&apos;s behavior and performance.
+                Power Failure: Disable multiple RPPs and adjust the load and EDP settings. Observe how these changes impact the power system&apos;s behavior and whip coloring.
             </p>
 
             {/* Begin / Stop Test */}
@@ -267,11 +293,10 @@ export default function PowerFailureTest() {
                     </RadioGroup>
                 </div>
 
-                {/* Read-only info row */}
+                {/* Read-only info */}
                 <div className="flex gap-4 text-xs text-muted-foreground">
-                    <span>RPP Size: <span className="text-white">{rppKw} kW</span></span>
-                    <span>Feeder: <span className="text-white">{feeder}A</span></span>
-                    <span>Platform: <span className="text-white">{PLATFORM_LABEL}</span></span>
+                    <span>RPP Size: <span className="text-white">{RPP_KW} kW</span></span>
+                    <span>Feeder: <span className="text-white">{FEEDER}A</span></span>
                 </div>
             </div>
 

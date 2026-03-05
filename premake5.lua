@@ -43,9 +43,18 @@ if os.isdir(kit_cae_dir) then
         else
             print("[DSX] Building kit-cae submodule (first time)...")
         end
-        local schema_ok = repo_exec(kit_cae_dir, "schema")
+        local schema_args = "schema"
+        local build_args = "build"
+        if os.host() == "windows" then
+            local vs2022_path = "C:/Program Files/Microsoft Visual Studio/2022"
+            if os.isdir(vs2022_path) then
+                schema_args = "schema --vs2022"
+                build_args = "--set-token vs_version:vs2022 build"
+            end
+        end
+        local schema_ok = repo_exec(kit_cae_dir, schema_args)
         if schema_ok then
-            repo_exec(kit_cae_dir, "build")
+            repo_exec(kit_cae_dir, build_args)
         else
             print("[DSX] WARNING: kit-cae schema step failed; skipping kit-cae build.")
         end

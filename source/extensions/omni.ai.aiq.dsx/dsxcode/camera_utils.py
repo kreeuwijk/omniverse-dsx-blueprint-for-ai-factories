@@ -38,7 +38,7 @@ CAMERA_PATH_PREFIX = "/World/interactive_cameras/"
 #   /World/assembly_Bldg_Equipment/.../Assembly_HAC_GPU_BLDG_SR_Interactive/
 #     hall_hacs                — 22 Hot Aisle Containment structures
 #     hall_GPUs_GB200          — 22 GPU racks (GB200)
-#     hall_GPUs_GB300_standin  — 22 GPU racks (GB300)
+#     hall_GPUs_GB300  — 22 GPU racks (GB300)
 #     hall_mech_cooling_gb300  — cooling piping
 #     hall_trays_power         — power cable trays (overhead)
 #     hall_remotepowerpanels   — remote power panels
@@ -50,7 +50,7 @@ CAMERA_PATH_PREFIX = "/World/interactive_cameras/"
 #   /World/assembly_Site                  — site (cooling towers, landscape)
 #   /World/CFD_Layer                      — CFD simulation overlay
 #   /World/interactive_cameras/           — all interactive cameras (11 total)
-#   GPU switching: visibility toggle between hall_GPUs_GB200 / hall_GPUs_GB300_standin
+#   GPU switching: visibility toggle between hall_GPUs_GB200 / hall_GPUs_GB300
 WAYPOINTS = {
     # Datahall
     "data_hall":           "camera_int_datahall_01",

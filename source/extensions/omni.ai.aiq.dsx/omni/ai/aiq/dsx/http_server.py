@@ -301,64 +301,135 @@ def _extract_actions(response_text: str) -> list:
     text_lower = response_text.lower()
 
     # ── Isolation (POD / RPPs) ─────────────────────────────────────────
-    # If the agent isolated the POD or made RPPs visible, navigate to the
-    # power infrastructure camera so the user can see the RPPs.
+    # Deterministic detection: isolate_pod_rpps() / restore_pod_visibility()
+    # set a flag with the prim paths to hide/show.  The frontend applies
+    # them via WebRTC changeVisibility messages.
     is_isolation = False
-    if any(kw in text_lower for kw in ("isolat", "rpp", "remote power panel")):
-        if any(kw in text_lower for kw in ("hid", "visible", "isol", "show")):
+    try:
+        from dsxcode.visibility import get_and_clear_isolation_action
+        iso_action = get_and_clear_isolation_action()
+        if iso_action is not None:
             is_isolation = True
             actions.append({
-                "type": "camera_change",
-                "camera_name": "/World/interactive_cameras/camera_int_datahall_04",
+                "type": "isolation_change",
+                "isolation": iso_action,
             })
+            if iso_action.get("isolate"):
+                actions.append({
+                    "type": "camera_change",
+                    "camera_name": "/World/interactive_cameras/camera_int_datahall_04",
+                })
+            carb.log_info(f"[_extract_actions] Isolation action → isolate={iso_action.get('isolate')}")
+    except ImportError:
+        pass
 
     # ── CFD / Simulation visibility ────────────────────────────────────
-    # Detect when the agent actually SHOWED CFD results (not just navigated
-    # to cfd_camera).  Uses content-specific phrases so that navigating to
-    # cfd_camera for the hot aisle view does NOT falsely enable CFD.
+    # Deterministic detection: visualize_cfd() sets a flag that we read
+    # here.  Instead of directly showing the CFD layer, we emit a
+    # simulation_change action that opens the Simulation panel's Thermal
+    # tab and starts the test — same flow as the "Begin Test" button.
     is_cfd = False
-    # Must match CFD *content* keywords — not bare "cfd" which appears in "cfd_camera"
-    cfd_content = ("cfd result", "cfd layer", "cfd simulation", "cfd data",
-                   "cfd visible", "cfd shown", "simulation result",
-                   "thermal result", "airflow result", "heatmap", "heat map",
-                   "temperature map", "visualize_cfd", "show_cfd",
-                   "index volume", "indexvolume")
-    if any(kw in text_lower for kw in cfd_content):
-        is_cfd = True
-        actions.append({
-            "type": "camera_change",
-            "camera_name": "/World/interactive_cameras/cfd_camera",
-        })
+    try:
+        from dsxcode.visibility import get_and_clear_cfd_action
+        cfd_action = get_and_clear_cfd_action()
+        if cfd_action is not None:
+            is_cfd = True
+            actions.append({
+                "type": "simulation_change",
+                "panel": "thermal",
+                "zone": "Data Hall",
+                "start_test": cfd_action,
+            })
+            carb.log_info(f"[_extract_actions] Deterministic CFD action → start_test={cfd_action}")
+    except ImportError:
+        pass
+
+    # ── Heat load change ──────────────────────────────────────────────────
+    try:
+        from dsxcode.visibility import get_and_clear_heat_load
+        heat_load = get_and_clear_heat_load()
+        if heat_load is not None:
+            actions.append({
+                "type": "simulation_change",
+                "panel": "thermal",
+                "zone": "Data Hall",
+                "heat_load": heat_load,
+            })
+            carb.log_info(f"[_extract_actions] Heat load → {heat_load}%")
+    except ImportError:
+        pass
+
+    # ── Electrical (power failure) test ────────────────────────────────────
+    try:
+        from dsxcode.visibility import get_and_clear_electrical_action
+        elec_action = get_and_clear_electrical_action()
+        if elec_action is not None:
+            action_obj = {
+                "type": "simulation_change",
+                "panel": "electrical",
+                "electrical_test": elec_action,
+            }
+            actions.append(action_obj)
+            if elec_action.get("playing"):
+                actions.append({
+                    "type": "camera_change",
+                    "camera_name": "/World/interactive_cameras/rpp_cameras",
+                })
+            carb.log_info(f"[_extract_actions] Electrical test action → {elec_action}")
+    except ImportError:
+        pass
+
+    # ── Per-RPP whip visibility ────────────────────────────────────────
+    try:
+        from dsxcode.visibility import get_and_clear_rpp_visibility
+        rpp_vis = get_and_clear_rpp_visibility()
+        if rpp_vis is not None:
+            actions.append({
+                "type": "rpp_whip_visibility",
+                "rpp_visible": rpp_vis,
+            })
+            carb.log_info(f"[_extract_actions] RPP whip visibility → {rpp_vis}")
+    except ImportError:
+        pass
+
+    # ── Site configurator ──────────────────────────────────────────────────
+    try:
+        from dsxcode.visibility import get_and_clear_site_action
+        site_action = get_and_clear_site_action()
+        if site_action is not None:
+            actions.append({"type": "site_change", **site_action})
+            carb.log_info(f"[_extract_actions] Site change → {site_action}")
+    except ImportError:
+        pass
+
+    # ── Power source ─────────────────────────────────────────────────────
+    try:
+        from dsxcode.visibility import get_and_clear_power_action
+        power_action = get_and_clear_power_action()
+        if power_action is not None:
+            actions.append({"type": "power_change", "power_source": power_action})
+            carb.log_info(f"[_extract_actions] Power change → {power_action}")
+    except ImportError:
+        pass
 
     # ── GPU / Rack variant switch ────────────────────────────────────────
-    # Detect GB200/GB300 rack switching in the response.  Instead of having
-    # the code interpreter call switch_rack_variant() (which uses stage.Traverse
-    # and blocks Kit's event loop for 10-20s), we emit a gpu_change action.
-    # The frontend handles it via WebRTC → manager extension → variant.py,
-    # the same path as the configurator panel's GPU dropdown.
+    # Deterministic detection: switch_rack_variant() sets a flag that we
+    # read here — no keyword matching needed.  The frontend applies the
+    # actual visibility change via switchGpuVisibility() (the same function
+    # that the configurator panel's GPU dropdown uses).
     is_gpu_change = False
-    # Only detect GPU changes when the agent actually SWITCHED variants.
-    # Require explicit switching language — bare "gb200"/"gb300" matches too
-    # broadly (e.g. "piping over the GB200/300 racks" is navigation, not a switch).
-    gpu_switch_phrases = ("switch_rack_variant", "switched to gb", "changed to gb",
-                          "switch rack", "switched rack", "switch the rack",
-                          "rack variant switch", "variant to gb", "racks from gb",
-                          "racks to gb", "racks to gpu", "racks to the gb",
-                          "switched gpu", "switch gpu", "changed gpu",
-                          "switched the rack", "gb200 variant", "gb300 variant")
-    if any(kw in text_lower for kw in gpu_switch_phrases):
-        gpu_selection = None
-        if "gb300" in text_lower:
-            gpu_selection = "GB300"
-        elif "gb200" in text_lower:
-            gpu_selection = "GB200"
+    try:
+        from dsxcode.visibility import get_and_clear_gpu_switch
+        gpu_selection = get_and_clear_gpu_switch()
         if gpu_selection:
             is_gpu_change = True
             actions.append({
                 "type": "gpu_change",
                 "gpu_selection": gpu_selection,
             })
-            carb.log_info(f"[_extract_actions] Detected GPU change → {gpu_selection}")
+            carb.log_info(f"[_extract_actions] Deterministic GPU change → {gpu_selection}")
+    except ImportError:
+        pass
 
     # ── Camera navigation ────────────────────────────────────────────────
     # Detect navigation language in the response (skip if CFD or isolation already handled)
@@ -422,6 +493,19 @@ def _extract_actions(response_text: str) -> list:
                 "camera_name": full_path,
             })
 
+    # Update backend camera tracking from any camera_change actions we emitted
+    for action in actions:
+        if action.get("type") == "camera_change" and action.get("camera_name"):
+            cam = action["camera_name"]
+            if "/" in cam:
+                cam = cam.rsplit("/", 1)[-1]
+            try:
+                from dsxcode.visibility import sync_ui_state
+                sync_ui_state({"current_camera": cam})
+            except ImportError:
+                pass
+            break
+
     carb.log_info(f"[_extract_actions] text='{response_text[:120]}...' → actions={actions}")
     return actions
 
@@ -436,6 +520,8 @@ class DSXAgentHandler(BaseHTTPRequestHandler):
             self._handle_chat()
         elif self.path == "/api/agent/preferences":
             self._handle_save_preferences()
+        elif self.path == "/api/agent/state":
+            self._handle_state_sync()
         else:
             self._send_json(404, {"error": "Not found"})
 
@@ -453,6 +539,28 @@ class DSXAgentHandler(BaseHTTPRequestHandler):
             self._handle_get_preferences()
         else:
             self._send_json(404, {"error": "Not found"})
+
+    # ------------------------------------------------------------------
+    # UI state sync — frontend POSTs current state so the agent is aware
+    # of user-driven changes (tab switches, test start/stop, GPU, etc.)
+    # ------------------------------------------------------------------
+
+    def _handle_state_sync(self):
+        """Receive UI state updates and sync to visibility.py module vars."""
+        try:
+            content_length = int(self.headers.get("Content-Length", 0))
+            if content_length > 0:
+                body = json.loads(self.rfile.read(content_length).decode("utf-8"))
+            else:
+                body = {}
+            from dsxcode.visibility import sync_ui_state
+            sync_ui_state(body)
+            self._send_json(200, {"status": "ok"})
+        except json.JSONDecodeError:
+            self._send_json(400, {"error": "Invalid JSON"})
+        except Exception as e:
+            carb.log_warn(f"[DSX Agent API] State sync error: {e}")
+            self._send_json(500, {"error": "Internal server error"})
 
     # ------------------------------------------------------------------
     # Preferences (in-memory stub)
@@ -518,7 +626,6 @@ class DSXAgentHandler(BaseHTTPRequestHandler):
                         # Manager's set_active_camera searches by name, so pass full path
                         _fire_manager_event("changeCamera", action["camera_name"])
                     elif action.get("type") == "gpu_change" and action.get("gpu_selection"):
-                        # Use visibility toggling (same as frontend configurator panel)
                         from dsxcode.visibility import GPU_GB200_PATH, GPU_GB300_PATH
                         gpu = action["gpu_selection"]
                         import json as _json
@@ -526,6 +633,31 @@ class DSXAgentHandler(BaseHTTPRequestHandler):
                             _json.dumps({"prim_path": GPU_GB200_PATH, "visible": gpu == "GB200"}))
                         _fire_manager_event("changeVisibility",
                             _json.dumps({"prim_path": GPU_GB300_PATH, "visible": gpu == "GB300"}))
+                    elif action.get("type") == "simulation_change":
+                        import json as _json
+                        if action.get("start_test") is not None:
+                            cfd_path = "/World/CFD_Layer/NV_DC_DS9_GB300_SinglePOD/CAE/IndeXVolume_Elements"
+                            _fire_manager_event("changeVisibility",
+                                _json.dumps({"prim_path": cfd_path, "visible": action["start_test"]}))
+                            if action["start_test"]:
+                                _fire_manager_event("changeCamera", "/World/interactive_cameras/cfd_camera")
+                        if action.get("heat_load") is not None:
+                            load_prim = "/World/CFD_Layer/NV_DC_DS9_GB300_SinglePOD/CAE/IndeXVolume_Elements/Materials/DCDTMaterial/VolumeShader"
+                            _fire_manager_event("setAttribute",
+                                _json.dumps({"prim_path": load_prim, "attr_name": "inputs:load_level", "value": action["heat_load"]}))
+                    elif action.get("type") == "rpp_whip_visibility" and action.get("rpp_visible"):
+                        import json as _json
+                        _fire_manager_event("rppWhipVisibility",
+                            _json.dumps(action["rpp_visible"]))
+                    elif action.get("type") == "isolation_change" and action.get("isolation"):
+                        import json as _json
+                        iso = action["isolation"]
+                        for path in iso.get("hide", []):
+                            _fire_manager_event("changeVisibility",
+                                _json.dumps({"prim_path": path, "visible": False}))
+                        for path in iso.get("show", []):
+                            _fire_manager_event("changeVisibility",
+                                _json.dumps({"prim_path": path, "visible": True}))
 
             self._send_json(200, result)
             

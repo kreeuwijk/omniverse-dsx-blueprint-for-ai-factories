@@ -102,8 +102,9 @@ livestream.allowResize = 1
 name = "DSX"
 renderer.resolution.width = 1920
 renderer.resolution.height = 1080
-auto_load_usd = "omniverse://content.ov.nvidia.com/Projects/Demos/DSX_BP/Assembly/DSX_Main.usda"
+auto_load_usd = "omniverse://content.ov.nvidia.com/Projects/Demos/DSX_BP/Assembly/DSX_Main_BP.usda"
 enableDeveloperWarnings = false
+useFabricSceneDelegate = true  # Turn on the Fabric scene delegate by default
 
 [settings.app.environment]
 name = "DSX"
@@ -178,7 +179,7 @@ rtx.hydra.geometrystreaming.instanceBudget = 3000000
 rtx.hydra.mdlMaterialWarmup = true  # start loading MDL shaders early
 rtx.occlusionDetection.enabled = true  # Skip rendering occluded objects (reduces GPU load)
 rtx.post.aa.op = 3
-rtx.post.tonemap.filmIso = 180
+rtx.post.tonemap.filmIso = 50
 rtx.rendermode = "RealTimePathTracing"
 rtx.rtpt.cached.enabled = true  # Cached path tracing - reuses temporal data, significantly reduces render cost for CAE
 rtx.verifyDriverVersion.enabled = false

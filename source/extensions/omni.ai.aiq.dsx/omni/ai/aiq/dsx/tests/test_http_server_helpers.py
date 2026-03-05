@@ -82,25 +82,33 @@ class TestExtractActions(omni.kit.test.AsyncTestCase):
         cam_names = [a["camera_name"] for a in actions if a["type"] == "camera_change"]
         self.assertIn("/World/interactive_cameras/camera_int_datahall_03", cam_names)
 
-    async def test_isolation_action(self):
-        text = "I've isolated the pod and made the RPPs visible."
+    async def test_isolation_action_via_flag(self):
+        """Isolation is now detected via deterministic flag, not keyword matching."""
+        from dsxcode.visibility import isolate_pod_rpps, get_and_clear_isolation_action
+        isolate_pod_rpps()
+        text = "Isolating POD."
         actions = _extract_actions(text)
+        iso_actions = [a for a in actions if a["type"] == "isolation_change"]
+        self.assertGreaterEqual(len(iso_actions), 1)
         cam_names = [a["camera_name"] for a in actions if a["type"] == "camera_change"]
         self.assertIn("/World/interactive_cameras/camera_int_datahall_04", cam_names)
 
-    async def test_cfd_overrides_separate_camera(self):
-        text = "CFD simulation results are visible. Navigated to camera_int_datahall_01."
+    async def test_cfd_via_flag(self):
+        """CFD is now detected via deterministic flag, not keyword matching."""
+        from dsxcode.visibility import visualize_cfd, get_and_clear_cfd_action
+        visualize_cfd(True)
+        text = "CFD thermal simulation started."
         actions = _extract_actions(text)
-        cam_names = [a["camera_name"] for a in actions if a["type"] == "camera_change"]
-        self.assertIn("/World/interactive_cameras/cfd_camera", cam_names)
-        self.assertNotIn("/World/interactive_cameras/camera_int_datahall_01", cam_names)
+        sim_actions = [a for a in actions if a["type"] == "simulation_change"]
+        self.assertGreaterEqual(len(sim_actions), 1)
+        self.assertTrue(sim_actions[0].get("start_test"))
 
-    async def test_isolation_overrides_separate_camera(self):
-        text = "I've isolated the RPPs and hidden other components. Switched to camera_int_datahall_01."
+    async def test_no_isolation_without_flag(self):
+        """Without flag set, isolation keywords in text should NOT trigger action."""
+        text = "I've isolated the RPPs and hidden other components."
         actions = _extract_actions(text)
-        cam_names = [a["camera_name"] for a in actions if a["type"] == "camera_change"]
-        self.assertIn("/World/interactive_cameras/camera_int_datahall_04", cam_names)
-        self.assertNotIn("/World/interactive_cameras/camera_int_datahall_01", cam_names)
+        iso_actions = [a for a in actions if a["type"] == "isolation_change"]
+        self.assertEqual(len(iso_actions), 0)
 
     async def test_cfd_camera_reference_without_cfd_content(self):
         text = "Navigated to hot_aisle view using cfd_camera for the best angle."

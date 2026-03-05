@@ -10,15 +10,9 @@ import { Dialog, DialogTrigger } from "@/components/ui/dialog";
 import { useConfig } from "@/context/DS9Context";
 import { Gpu, Country, Region, CONFIGURATOR_OPTIONS, Power, gpuDisplayMap, SITE_OPTIONS } from "@/data/options";
 import { PREFERENCES_API_URL } from "@/config/api";
-import { switchCamera, switchVisibility } from "@/streamMessages";
+import { switchCamera, switchVisibility, switchGpuVisibility, syncAgentState } from "@/streamMessages";
 import { useSimulation } from "@/context/SimulationContext";
 import site from "@/assets/site.png";
-
-const GPU_PRIM_BASE = "/World/assembly_Bldg_Equipment/assembly_Bldg_Equipment/DSX_Bldg_Equipement/DS9_Z0S0_BLDG_EQUIPMENT/Assembly_HAC_GPU_BLDG_SR_Interactive";
-const GPU_PRIM_MAP: Record<string, string> = {
-    "GB200": `${GPU_PRIM_BASE}/hall_GPUs_GB200`,
-    "GB300": `${GPU_PRIM_BASE}/hall_GPUs_GB300_standin`,
-};
 import SaveConfigDialog from "./configurator/SaveConfigDialog";
 import IconButtonNative from "./IconButtonNative";
 import SceneView from "@arcgis/core/views/SceneView";
@@ -93,9 +87,7 @@ const ConfiguratorPanel = ({ sceneView, webScene }: ChildProps) => {
                 if (data.gpu_selection && gpuDisplayMap[data.gpu_selection]) {
                     const displayGpu = gpuDisplayMap[data.gpu_selection];
                     setSelectedGpu(displayGpu);
-                    for (const [key, primPath] of Object.entries(GPU_PRIM_MAP)) {
-                        switchVisibility(primPath, key === data.gpu_selection);
-                    }
+                    await switchGpuVisibility(data.gpu_selection);
                     console.info(`[ConfiguratorPanel] Loaded saved GPU preference: ${data.gpu_selection} for user ${userId}`);
                 }
             } catch (error) {
@@ -117,9 +109,8 @@ const ConfiguratorPanel = ({ sceneView, webScene }: ChildProps) => {
         const variant = variantMap[gpu];
         if (!variant) return;
 
-        for (const [key, primPath] of Object.entries(GPU_PRIM_MAP)) {
-            switchVisibility(primPath, key === variant);
-        }
+        await switchGpuVisibility(variant);
+        syncAgentState({ current_gpu: variant });
 
         // Don't save preference if user is not authenticated
         if (userId === 'anonymous' || !auth.user?.id_token) return;
@@ -152,6 +143,7 @@ const ConfiguratorPanel = ({ sceneView, webScene }: ChildProps) => {
 
     const handlePowerSelect = async (power: Power) => {
         setSelectedPower(power);
+        syncAgentState({ power_source: power });
 
         // Don't save preference if user is not authenticated
         if (userId === 'anonymous' || !auth.user?.id_token) return;
@@ -181,8 +173,8 @@ const ConfiguratorPanel = ({ sceneView, webScene }: ChildProps) => {
     // This ensures consistent behavior whether the change comes from user interaction or AI Agent.
     const handleCountrySelect = async (country: Country) => {
         setSelectedCountry(country);
+        syncAgentState({ site_country: country, site_region: null });
         if (country !== "Sweden") {
-            // For United States, reset region
             setSelectedRegion(null);
         }
 
@@ -216,6 +208,7 @@ const ConfiguratorPanel = ({ sceneView, webScene }: ChildProps) => {
     // Note: Only updates context state. The useEffect handles side effects (zoom, analytics toggle)
     const handleRegionSelect = async (region: Region) => {
         setSelectedRegion(region);
+        syncAgentState({ site_region: region });
 
         // Don't save preference if user is not authenticated
         if (userId === 'anonymous' || !auth.user?.id_token) return;
