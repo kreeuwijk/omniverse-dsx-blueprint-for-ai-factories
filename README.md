@@ -2,7 +2,13 @@
 
 ## Overview
 
-DSX is a complete cloud streaming platform for NVIDIA Omniverse applications, combining GPU-accelerated 3D rendering with a modern web interface. Built on the NVIDIA Omniverse Kit SDK, DSX provides a production-ready solution for streaming high-performance OpenUSD-based applications directly to web browsers.
+DSX is a platform for building and streaming GPU-accelerated digital twin experiences using Omniverse. It combines real-time 3D rendering with a modern web interface. You can create interactive visualizations of AI factory infrastructure.
+
+DSX is built on the Kit SDK. It provides high-fidelity visualization with RTX rendering and native USD support. The web portal connects to the Kit application via WebRTC. This allows browser-based interaction with 3D scenes. For production deployments, containerized infrastructure provides scalable GPU compute.
+
+Please note that this blueprint is designed to provide an example of integrating the workflow for developers and demonstrate key concepts and patterns. It is not a turn-key application ready for production deployment without customization.
+
+Developers are expected to use this guide as a starting point and extend the blueprint according to their specific requirements, potentially making significant architectural or implementation changes as needed for their particular use cases.
 
 ### Platform Components
 
@@ -46,16 +52,19 @@ Ensure your system meets the following requirements:
 
 ### System Requirements
 
-- **Operating System**: Windows 10/11 or Linux (Ubuntu 22.04 or newer)
-- **GPU**: NVIDIA RTX capable GPU (RTX 3070 or better recommended)
-- **Driver**: Minimum version 537.58 (newer versions may work but are not equally validated)
-- **Internet Access**: Required for downloading the Omniverse Kit SDK, extensions, and tools
+- **Operating System**: Windows 10/11 or Linux (Ubuntu 22.04 or 24.04)
+- **GPU**: NVIDIA RTX Pro 6000 Blackwell
+- **Driver**: Version 570.169
+- **RAM**: 64GB (DDR5)
+- **Storage**: 1TB NVMe or greater
+
+Refer to the detailed [Technical Requirements](https://docs.omniverse.nvidia.com/dsx/latest/common/technical-requirements.html) for additional detail. 
+
 
 ### Required Software Dependencies
 
 #### Core Tools
 - [**Git**](https://git-scm.com/downloads): For version control and repository management
-- [**Git LFS**](https://git-lfs.com/): For managing large files within the repository
 
 #### Kit Application Development (C++)
 - **(Windows) Microsoft Visual Studio 2019**: Install from [Visual Studio Downloads](https://visualstudio.microsoft.com/downloads/). Ensure **Desktop development with C++** workload is selected. VS2019 is required because the Kit-CAE extension links against Boost libraries built with the v142 toolset. [Additional configuration details](readme-assets/additional-docs/windows_developer_configuration.md)
