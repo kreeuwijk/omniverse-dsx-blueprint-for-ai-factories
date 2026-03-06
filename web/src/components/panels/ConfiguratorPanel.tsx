@@ -50,6 +50,7 @@ const ConfiguratorPanel = ({ sceneView, webScene }: ChildProps) => {
             switchVisibility("/World/CFD_Layer/NV_DC_DS9_GB300_SinglePOD/CAE/IndeXVolume_Elements", false);
         }
         switchCamera("/World/interactive_cameras/camera_int_datahall_01");
+        syncAgentState({ current_camera: "camera_int_datahall_01", active_tab: mode });
     };
 
     // Handles when a user selects a GPU from the dropdown
