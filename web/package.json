@@ -2,7 +2,7 @@
   "name": "@nvidia/ov-dsx",
   "description": "NVIDIA Omniverse DSX Component",
   "private": false,
-  "version": "0.1.0",
+  "version": "2.0.0",
   "type": "module",
   "main": "./dist/index.js",
   "module": "./dist/index.js",

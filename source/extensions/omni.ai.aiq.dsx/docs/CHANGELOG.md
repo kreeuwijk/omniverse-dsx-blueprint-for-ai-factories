@@ -1,5 +1,9 @@
 # Changelog
 
+## [2.0.0] - 2026-03-06
+- Synchronized camera state on configurator tab changes
+
+
 ## [0.1.0] - 2026-02-11
 ### Added
 - Initial DSX Agent extension with waypoint navigation and scene authoring

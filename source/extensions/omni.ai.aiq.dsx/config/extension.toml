@@ -1,5 +1,5 @@
 [package]
-version = "0.1.0"
+version = "2.0.0"
 authors = ["NVIDIA"]
 title = "DSX - Datacenter Digital Twin AI Agent"
 description = "Multi-agent system for datacenter digital twin operations: waypoint navigation, scene authoring, and component inspection."
