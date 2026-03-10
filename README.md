@@ -1,58 +1,48 @@
-# DSX - Omniverse Cloud Streaming Platform
+# NVIDIA Omniverse DSX Blueprint for AI Factory Digital Twins 
 
 ## Overview
 
-DSX is a platform for building and streaming GPU-accelerated digital twin experiences using Omniverse. It combines real-time 3D rendering with a modern web interface. You can create interactive visualizations of AI factory infrastructure.
+The NVIDIA Omniverse DSX Blueprint is the digital twin manifestation of the DSX reference design, demonstrating to developers how to use Omniverse libraries for design, simulation, and operations across AI factory facilities and their hardware–software ecosystem. 
 
-DSX is built on the Kit SDK. It provides high-fidelity visualization with RTX rendering and native USD support. The web portal connects to the Kit application via WebRTC. This allows browser-based interaction with 3D scenes. For production deployments, containerized infrastructure provides scalable GPU compute.
+This experience demonstrates the type of interactive, realtime application a developer can build that allows an end user to change the configuration of an AI factory design and visualize simulation scenarios with that new design - including power and thermal visualizing inside the interactive viewport. The scene is composed on SimReady USD assets that show OEMs and CAD developers what an exemplar dataset is composed of, so that it's physical and non-physical data can be interchanged to a thermal or electrical application that will generate CFD data. We include sample CFD data and demonstrate how a developer can visualize that data inside the viewport alongside the rest of the digital twin as different simulation scenarios are run.
 
 Please note that this blueprint is designed to provide an example of integrating the workflow for developers and demonstrate key concepts and patterns. It is not a turn-key application ready for production deployment without customization.
 
 Developers are expected to use this guide as a starting point and extend the blueprint according to their specific requirements, potentially making significant architectural or implementation changes as needed for their particular use cases.
 
+## Workflow
+![Workflow Diagram](docs/images/workflow-diagram.png)
+
 ### Platform Components
 
-The platform consists of two integrated systems:
+This repo contains: 
+1. Digital Twin set of geometry based on the entire DSX reference design for a 50 acre site including compute building and support infrastructure. 
+2. Front-end web application with user interface developed with Omnivere libraries, for interacting with digital twins, viewing simulations, and creating and saving build configurations.
+3. Simulation-ready assets to accelerate digital twin creation: 
+    - Computational Fluid Dynamic Thermal hot aisle simulation.
+    - Sample compute configurations for DSX such as GB200 and GB300 NVL72 designs. 
+    - Electrical loading simulation to test various loading configurations. 
 
-1. **Omniverse Kit Application** - GPU-accelerated 3D rendering engine built on the Omniverse Kit SDK
-2. **Web Portal** - React frontend for user interaction and session management
+## Target Audience
+Omniverse DSX Blueprint serves as the connective tissue for the ecosystem to build digital twins to design and optimize the AI factory lifecycle. Setting up the digital twin requires a technical team wiht expertise in different areas of the software stack:
 
-### How It Works
+1. Persona-1: End-User (e.g. design engineer)
+2. Persona-2: CFD Engineer
+3. Persona-3: Design Engineer/Creative Artist
+4. Persona-4: Application Developer
+5. Persona-5: AI Engineer
 
-- Web Portal manages user authentication and launches Kit application containers on NVIDIA Cloud Functions (NVCF)
-- Kit Application renders 3D USD scenes with GPU acceleration and streams via WebRTC
-- Users interact through their browser, with commands sent in real-time to the Kit application
-- Administrative panel provides monitoring and control over active user sessions
+## Getting Started
 
-See [ARCHITECTURE.md](ARCHITECTURE.md) for detailed system design.
+The sections below cover what is needed to start using this blueprint, they consist of:
+* Prerequisites
+* Configuration
+* Customization
+* Evaluation
 
-## Table of Contents
+### Prerequisites
 
-- [Overview](#overview)
-- [Prerequisites and Environment Setup](#prerequisites-and-environment-setup)
-- [Repository Structure](#repository-structure)
-- [Quick Start](#quick-start)
-  - [Kit Application Setup](#kit-application-setup)
-  - [Web Portal Setup](#web-portal-setup)
-- [About the Omniverse Kit SDK](#about-the-omniverse-kit-sdk)
-- [DSX Applications](#dsx-applications)
-- [Application Streaming](#application-streaming)
-- [Deployment](#deployment)
-- [Tools](#tools)
-- [Governing Terms](#governing-terms)
-- [Data Collection](#data-collection)
-- [Additional Resources](#additional-resources)
-- [Contributing](#contributing)
-
----
-
-## Prerequisites and Environment Setup
-
-Ensure your system meets the following requirements:
-
-### System Requirements
-
-- **Operating System**: Windows 10/11 or Linux (Ubuntu 22.04 or 24.04)
+#### Hardware
 - **GPU**: NVIDIA RTX Pro 6000 Blackwell
 - **Driver**: Version 570.169
 - **RAM**: 64GB (DDR5)
@@ -60,25 +50,22 @@ Ensure your system meets the following requirements:
 
 Refer to the detailed [Technical Requirements](https://docs.omniverse.nvidia.com/dsx/latest/common/technical-requirements.html) for additional detail. 
 
+#### OS Requirements
+- **Operating System**: Windows 10/11 or Linux (Ubuntu 22.04 or 24.04)
 
-### Required Software Dependencies
-
-#### Core Tools
+#### Software Requirements
 - [**Git**](https://git-scm.com/downloads): For version control and repository management
-
-#### Kit Application Development (C++)
-- **(Windows) Microsoft Visual Studio 2019**: Install from [Visual Studio Downloads](https://visualstudio.microsoft.com/downloads/). Ensure **Desktop development with C++** workload is selected. VS2019 is required because the Kit-CAE extension links against Boost libraries built with the v142 toolset. [Additional configuration details](readme-assets/additional-docs/windows_developer_configuration.md)
-- **(Windows) Windows SDK**: Install alongside MSVC via Visual Studio Installer
-- **(Linux) build-essentials**: Install with `sudo apt-get install build-essential`
-
-#### Web Portal Development
-- **Node.js and npm**: For frontend development
-
-### Recommended Software
-
 - [**(Linux) Docker**](https://docs.docker.com/engine/install/ubuntu/): For containerized development and deployment. **Ensure non-root users have Docker permissions.**
 - [**(Linux) NVIDIA Container Toolkit**](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html): For GPU-accelerated containerized development and deployment
 - [**VSCode**](https://code.visualstudio.com/download) (or your preferred IDE): For code editing and development
+
+##### Web Portal Development Requirements
+- **Node.js and npm**: For frontend development
+
+##### Kit Application Development (C++) Requirements
+- **(Windows) Microsoft Visual Studio 2019**: Install from [Visual Studio Downloads](https://visualstudio.microsoft.com/downloads/). Ensure **Desktop development with C++** workload is selected. VS2019 is required because the Kit-CAE extension links against Boost libraries built with the v142 toolset. [Additional configuration details](readme-assets/additional-docs/windows_developer_configuration.md)
+- **(Windows) Windows SDK**: Install alongside MSVC via Visual Studio Installer
+- **(Linux) build-essentials**: Install with `sudo apt-get install build-essential`
 
 ---
 
@@ -331,6 +318,27 @@ For incremental builds after the first build, use the same command — it only r
 - **Launch**: `./repo.sh launch` or `.\repo.bat launch` - Start the Kit application locally
 - **Testing**: `./repo.sh test` or `.\repo.bat test` - Execute test suites for extensions
 - **Packaging**: `./repo.sh package` or `.\repo.bat package` - Package application for cloud deployment
+
+
+## Troubleshooting
+For detailed troubleshooting issues and solutions, refer to the [Troubleshooting documentation](https://docs.omniverse.nvidia.com/dsx/latest/troubleshooting.html). 
+
+Verify GPU and Driver:
+```
+nvidia-smi
+```
+
+Verify Node.js and npm:
+```
+node --version
+npm --version
+```
+
+Application hangs during render initialization (IOMMU/zenity dialog)
+* Disable IOMMU at the system level. 
+
+Unable to display map. WebGL2 support is required
+* Enable hardware acceleratioin in your browser.
 
 ---
 

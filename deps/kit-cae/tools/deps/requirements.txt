@@ -1,3 +1,0 @@
-# This file is used to install the dependencies for the project.
-vtk==9.4
-h5py==3.13
