@@ -1,8 +1,8 @@
-# NVIDIA Omniverse DSX Blueprint for AI Factory Digital Twins 
+# NVIDIA Omniverse DSX Blueprint for AI Factory Digital Twins
 
 ## Overview
 
-The NVIDIA Omniverse DSX Blueprint is the digital twin manifestation of the DSX reference design, demonstrating to developers how to use Omniverse libraries for design, simulation, and operations across AI factory facilities and their hardware–software ecosystem. 
+The NVIDIA Omniverse DSX Blueprint is the digital twin manifestation of the DSX reference design, demonstrating to developers how to use Omniverse libraries for design, simulation, and operations across AI factory facilities and their hardware–software ecosystem.
 
 This experience demonstrates the type of interactive, realtime application a developer can build that allows an end user to change the configuration of an AI factory design and visualize simulation scenarios with that new design - including power and thermal visualizing inside the interactive viewport. The scene is composed on SimReady USD assets that show OEMs and CAD developers what an exemplar dataset is composed of, so that it's physical and non-physical data can be interchanged to a thermal or electrical application that will generate CFD data. We include sample CFD data and demonstrate how a developer can visualize that data inside the viewport alongside the rest of the digital twin as different simulation scenarios are run.
 
@@ -11,17 +11,17 @@ Please note that this blueprint is designed to provide an example of integrating
 Developers are expected to use this guide as a starting point and extend the blueprint according to their specific requirements, potentially making significant architectural or implementation changes as needed for their particular use cases.
 
 ## Workflow
-![Workflow Diagram](docs/images/workflow-diagram.png)
+![Workflow Diagram](readme-assets/workflow-diagram.png)
 
 ### Platform Components
 
-This repo contains: 
-1. Digital Twin set of geometry based on the entire DSX reference design for a 50 acre site including compute building and support infrastructure. 
+This repo contains:
+1. Digital Twin set of geometry based on the entire DSX reference design for a 50 acre site including compute building and support infrastructure.
 2. Front-end web application with user interface developed with Omnivere libraries, for interacting with digital twins, viewing simulations, and creating and saving build configurations.
-3. Simulation-ready assets to accelerate digital twin creation: 
+3. Simulation-ready assets to accelerate digital twin creation:
     - Computational Fluid Dynamic Thermal hot aisle simulation.
-    - Sample compute configurations for DSX such as GB200 and GB300 NVL72 designs. 
-    - Electrical loading simulation to test various loading configurations. 
+    - Sample compute configurations for DSX such as GB200 and GB300 NVL72 designs.
+    - Electrical loading simulation to test various loading configurations.
 
 ## Target Audience
 Omniverse DSX Blueprint serves as the connective tissue for the ecosystem to build digital twins to design and optimize the AI factory lifecycle. Setting up the digital twin requires a technical team wiht expertise in different areas of the software stack:
@@ -48,7 +48,7 @@ The sections below cover what is needed to start using this blueprint, they cons
 - **RAM**: 64GB (DDR5)
 - **Storage**: 1TB NVMe or greater
 
-Refer to the detailed [Technical Requirements](https://docs.omniverse.nvidia.com/dsx/latest/common/technical-requirements.html) for additional detail. 
+Refer to the detailed [Technical Requirements](https://docs.omniverse.nvidia.com/dsx/latest/common/technical-requirements.html) for additional detail.
 
 #### OS Requirements
 - **Operating System**: Windows 10/11 or Linux (Ubuntu 22.04 or 24.04)
@@ -380,7 +380,7 @@ For incremental builds after the first build, use the same command — it only r
 
 
 ## Troubleshooting
-For detailed troubleshooting issues and solutions, refer to the [Troubleshooting documentation](https://docs.omniverse.nvidia.com/dsx/latest/troubleshooting.html). 
+For detailed troubleshooting issues and solutions, refer to the [Troubleshooting documentation](https://docs.omniverse.nvidia.com/dsx/latest/troubleshooting.html).
 
 Verify GPU and Driver:
 ```
@@ -394,7 +394,7 @@ npm --version
 ```
 
 Application hangs during render initialization (IOMMU/zenity dialog)
-* Disable IOMMU at the system level. 
+* Disable IOMMU at the system level.
 
 Unable to display map. WebGL2 support is required
 * Enable hardware acceleratioin in your browser.
