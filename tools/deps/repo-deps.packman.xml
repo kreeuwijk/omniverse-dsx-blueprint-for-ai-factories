@@ -6,7 +6,7 @@
     <package name="repo_build" version="1.23.1"/>
   </dependency>
   <dependency name="repo_kit_tools" linkPath="../../_repo/deps/repo_kit_tools">
-    <package name="repo_kit_tools" version="1.17.12"/>
+    <package name="repo_kit_tools" version="1.17.6"/>
   </dependency>
   <dependency name="repo_test" linkPath="../../_repo/deps/repo_test">
     <package name="repo_test" version="2.43.2" />
@@ -19,8 +19,5 @@
   </dependency>
   <dependency name="repo_usd" linkPath="../../_repo/deps/repo_usd">
     <package name="repo_usd" version="5.0.26" />
-  </dependency>
-  <dependency name="repo_ngc" linkPath="../../_repo/deps/repo_ngc">
-    <package name="repo_ngc" version="1.7.0" />
   </dependency>
 </project>
