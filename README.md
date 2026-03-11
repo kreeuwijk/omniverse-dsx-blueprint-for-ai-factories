@@ -60,7 +60,35 @@ Refer to the detailed [Technical Requirements](https://docs.omniverse.nvidia.com
 - [**VSCode**](https://code.visualstudio.com/download) (or your preferred IDE): For code editing and development
 
 ##### Web Portal Development Requirements
-- **Node.js and npm**: For frontend development
+- **Node.js and npm**: For frontend build and development
+
+###### Linux
+```bash
+# Verify Installation
+node --version  # Should be v20.x or higher
+npm --version   # Should be 9.x or higher
+
+# Install Node.js 20.x using NodeSource repository if not already installed
+curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+sudo apt-get install -y nodejs
+```
+
+###### Windows
+```powershell
+node --version  # Should be v20.x or higher
+npm --version   # Should be 9.x or higher
+```
+
+If not installed:
+1. Download Node.js installer from [nodejs.org](https://nodejs.org)
+2. Run the installer and follow the setup wizard
+3. Ensure "Add to PATH" option is selected during installation
+4. Restart your terminal and verify installation:
+```powershell
+node --version
+npm --version
+```
+
 
 ##### Kit Application Development (C++) Requirements
 - **(Windows) Microsoft Visual Studio 2019**: Install from [Visual Studio Downloads](https://visualstudio.microsoft.com/downloads/). Ensure **Desktop development with C++** workload is selected. VS2019 is required because the Kit-CAE extension links against Boost libraries built with the v142 toolset. [Additional configuration details](readme-assets/additional-docs/windows_developer_configuration.md)

@@ -132,8 +132,11 @@ showByPurpose.proxy = true
     # Extra paths required for the repo_precache_exts step
     "./deps/kit-cae/_build/${platform}/${config}/apps",
     "./deps/kit-cae/_build/${platform}/${config}/exts",
-    # DSX agent extension (kit-usd-agents)
-    "${app}/../../deps/kit-usd-agents/_build/windows-x86_64/release/exts",
+    # DSX agent extension (kit-usd-agents) — resolve from source so no
+    # separate build step is needed and the path works on all platforms.
+    "${app}/../../deps/kit-usd-agents/source/extensions",
+    # Fallback: built output (used by CI or manual builds of kit-usd-agents)
+    "./deps/kit-usd-agents/_build/${platform}/${config}/exts",
 ]
 
 [settings.app.file]
