@@ -30,15 +30,11 @@ if [ ! -d "_build" ]; then
     echo "Building kit-cae extensions..."
     ./deps/kit-cae/repo.sh build
 
-    # 4. Build kit-usd-agents extensions
-    echo "Building kit-usd-agents extensions..."
-    ./deps/kit-usd-agents/repo.sh build
-
-    # 5. Precache extensions (must run after kit-cae is built)
+    # 4. Precache extensions (must run after kit-cae is built)
     echo "Precaching extensions..."
     ./repo.sh build -u
 
-    # 6. Build the DSX application
+    # 5. Build the DSX application
     echo "Building DSX application..."
     ./repo.sh build -r
 fi

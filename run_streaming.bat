@@ -36,11 +36,6 @@ if not exist "_build" (
     call deps\kit-cae\repo.bat build
     if errorlevel 1 ( echo CAE build failed! & exit /b 1 )
 
-    REM 3. Build kit-usd-agents extensions
-    echo Building kit-usd-agents extensions...
-    call deps\kit-usd-agents\repo.bat build
-    if errorlevel 1 ( echo kit-usd-agents build failed! & exit /b 1 )
-
     REM 4. Precache extensions (must run after kit-cae is built)
     echo Precaching extensions...
     call repo.bat build -u
