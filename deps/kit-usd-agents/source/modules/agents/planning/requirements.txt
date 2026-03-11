@@ -1,2 +1,0 @@
-lc_agent
-lc_agent_nat

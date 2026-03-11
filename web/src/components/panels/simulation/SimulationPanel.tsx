@@ -20,6 +20,7 @@ import PowerFailureTest from "./PowerFailureTest"
 
 // ─── Thermal CFD Constants ──────────────────────────────────────────────────
 const CFD_CAMERA_PATH = "/World/interactive_cameras/cfd_camera"
+const CFD_LAYER_ROOT = "/World/CFD_Layer"
 const CFD_LAYER_PATH = "/World/CFD_Layer/NV_DC_DS9_GB300_SinglePOD/CAE/IndeXVolume_Elements"
 const LOAD_LEVEL_PRIM = "/World/CFD_Layer/NV_DC_DS9_GB300_SinglePOD/CAE/IndeXVolume_Elements/Materials/DCDTMaterial/VolumeShader"
 const LOAD_LEVEL_ATTR = "inputs:load_level"
@@ -72,6 +73,7 @@ const SimulationPanel = () => {
             if (thermalIsRunning) {
                 setThermalIsRunning(false);
                 switchVisibility(CFD_LAYER_PATH, false);
+                switchVisibility(CFD_LAYER_ROOT, false);
             }
             switchCamera(DEFAULT_CAMERA_PATH);
         }
@@ -100,10 +102,17 @@ const SimulationPanel = () => {
         syncAgentState({ heat_load: value });
     };
 
-    // Start/Stop handler — toggles visibility of /World/CFD_Layer
+    // Start/Stop handler — toggles visibility of /World/CFD_Layer and the IndeX volume prim.
+    // Both the parent layer root and the child volume prim must be made visible;
+    // toggling only the child leaves it hidden when the parent is invisible.
     const handleThermalStartStop = (running: boolean) => {
         setThermalIsRunning(running);
+        switchVisibility(CFD_LAYER_ROOT, running);
         switchVisibility(CFD_LAYER_PATH, running);
+        if (running) {
+            switchCamera(CFD_CAMERA_PATH);
+            setPrimAttribute(LOAD_LEVEL_PRIM, LOAD_LEVEL_ATTR, thermalHeatLoad);
+        }
     };
 
     return (

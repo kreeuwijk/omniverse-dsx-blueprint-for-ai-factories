@@ -14,6 +14,7 @@ import json
 import omni.ext
 import omni.usd
 import carb.events
+import carb.eventdispatcher
 from pxr import Usd, UsdGeom
 from omni.kit.viewport.utility import get_active_viewport_camera_string
 
@@ -46,13 +47,27 @@ class ManagerExtension(omni.ext.IExt):
     # ext_id is the current extension id. It can be used with the extension
     # manager to query additional information, like where this extension is
     # located on the filesystem.
+    _RECEIVE_EVENT = "omni.kit.livestream.receive_message"
+
     def on_startup(self, _ext_id):
         """This is called every time the extension is activated."""
         print("[manager] Extension startup")
-        self.message_bus = omni.kit.app.get_app().get_message_bus_event_stream()
-        self.subscription = self.message_bus.create_subscription_to_pop_by_type(
-            carb.events.type_from_string("send_message_from_event"),
-            self._on_message_received
+
+        # Register an event alias so carb.eventdispatcher can observe events
+        # originally fired on the old carb.events message bus by the WebRTC
+        # streaming layer.  This is the same alias that
+        # omni.kit.livestream.messaging would have registered.
+        self._registered_alias = False
+        event_type = carb.events.type_from_string(self._RECEIVE_EVENT)
+        if omni.kit.app.register_event_alias(event_type, self._RECEIVE_EVENT):
+            self._registered_alias = True
+
+        # Subscribe directly to raw WebRTC messages so we don't need the
+        # omni.kit.livestream.messaging extension (which is only on the
+        # internal NVIDIA registry and breaks off-VPN builds).
+        self._webrtc_sub = carb.eventdispatcher.get_eventdispatcher().observe_event(
+            event_name=self._RECEIVE_EVENT,
+            on_event=self._on_webrtc_message,
         )
 
         # Subscribe to stage events for pickability and camera-state capture
@@ -75,10 +90,15 @@ class ManagerExtension(omni.ext.IExt):
         print("[manager] Extension shutdown")
         if hasattr(self, "_stage_event_sub") and self._stage_event_sub:
             self._stage_event_sub = None
-        if hasattr(self, "subscription") and self.subscription:
-            self.subscription = None
-        if hasattr(self, "message_bus"):
-            self.message_bus = None
+        if hasattr(self, "_webrtc_sub") and self._webrtc_sub:
+            self._webrtc_sub.reset()
+            self._webrtc_sub = None
+        if self._registered_alias:
+            event_type = carb.events.type_from_string(self._RECEIVE_EVENT)
+            carb.events.unregister_event_alias(
+                event_type, f"{self._RECEIVE_EVENT}:immediate", self._RECEIVE_EVENT
+            )
+            self._registered_alias = False
 
     def _on_stage_event(self, event):
         """Handle stage events — disable pickability and capture camera attrs."""
@@ -113,16 +133,27 @@ class ManagerExtension(omni.ext.IExt):
                         for attr in prim.GetAttributes():
                             self._camera_attrs[attr.GetName()] = attr.Get()
 
-    def _on_message_received(self, event):
-        """Route incoming messages from frontend to appropriate handler functions."""
-        # Extract payload from event
-        payload = {}
-        if hasattr(event, 'payload'):
-            if hasattr(event.payload, 'get_dict'):
-                payload = event.payload.get_dict()
-            elif isinstance(event.payload, dict):
-                payload = event.payload
+    def _on_webrtc_message(self, event):
+        """Bridge raw WebRTC messages into the command router.
 
+        Replaces the omni.kit.livestream.messaging extension: parses the JSON
+        envelope from the WebRTC data channel and dispatches the inner payload
+        to _route_command().
+        """
+        if "message" not in event.payload:
+            return
+        try:
+            event_dict = json.loads(event.payload["message"])
+        except (json.JSONDecodeError, TypeError):
+            return
+        if event_dict.get("event_type") != "send_message_from_event":
+            return
+        payload = event_dict.get("payload")
+        if payload:
+            self._route_command(payload)
+
+    def _route_command(self, payload):
+        """Route a command payload from the frontend to the appropriate handler."""
         command_name = payload.get("command_name", "")
         message = payload.get("message", "")
 

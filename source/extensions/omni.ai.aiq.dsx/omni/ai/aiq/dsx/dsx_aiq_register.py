@@ -7,11 +7,11 @@ so workflow.yaml can reference them via _type.
 import logging
 from typing import List, Optional, Type
 
-from aiq.builder.builder import Builder
-from aiq.builder.framework_enum import LLMFrameworkEnum
-from aiq.cli.register_workflow import register_function
-from aiq.data_models.component_ref import FunctionRef, LLMRef
-from aiq.data_models.function import FunctionBaseConfig
+from nat.builder.builder import Builder
+from nat.builder.framework_enum import LLMFrameworkEnum
+from nat.cli.register_workflow import register_function
+from nat.data_models.component_ref import FunctionRef, LLMRef
+from nat.data_models.function import FunctionBaseConfig
 from pydantic import Field
 
 try:

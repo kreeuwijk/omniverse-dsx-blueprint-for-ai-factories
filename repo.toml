@@ -50,21 +50,20 @@ log_message = "The redirected argument -n to --image-tag has new behavior. If a 
 # These are necessary to avoid a repo_build failure where the source/apps directory
 # is expected to always exist.
 fetch."platform:linux-x86_64".before_pull_commands = [
-    ["mkdir", "--parents", "${root}/source/apps"],
     ["git", "-C", "${root}", "submodule", "update", "--init", "--recursive"],
-    ["bash", "-c", "if [ -d '${root}/deps/kit-cae' ] && [ ! -d '${root}/deps/kit-cae/_build' ]; then echo '[DSX] Building kit-cae submodule (schema + extensions)...' && cd '${root}/deps/kit-cae' && ./repo.sh schema && ./repo.sh build -r; fi"],
+    ["bash", "${root}/tools/build_submodules.sh", "${root}"],
 ]
 
-# Mute this command, don't emit to console.
 fetch."platform:windows-x86_64".before_pull_commands = [
-    ["powershell", "-Command", "New-Item -ItemType Directory -Path ${root}/source/apps -ErrorAction SilentlyContinue", ";", "Write-Host 'Done'"],
     ["git", "-C", "${root}", "submodule", "update", "--init", "--recursive"],
-    ["powershell", "-NoProfile", "-Command", "if ((Test-Path '${root}/deps/kit-cae') -and -not (Test-Path '${root}/deps/kit-cae/_build')) { Write-Host '[DSX] Building kit-cae submodule (schema + extensions)...'; Push-Location '${root}/deps/kit-cae'; $$schemaFlag = ''; $$buildArgs = @('build', '-r'); if (Test-Path 'C:\\Program Files\\Microsoft Visual Studio\\2022') { $$schemaFlag = '--vs2022'; $$buildArgs = @('--set-token', 'vs_version:vs2022', 'build', '-r') }; & ./repo.bat schema $$schemaFlag; if ($$LASTEXITCODE -ne 0) { Pop-Location; exit 1 }; & ./repo.bat @buildArgs; if ($$LASTEXITCODE -ne 0) { Pop-Location; exit 1 }; Pop-Location }"],
+    ["cmd", "/c", "${root}\\tools\\build_submodules.bat", "${root}"],
 ]
 
 # If caching do not try to cache extensions. These will come from the NGC Kit Extension Registry.
 fetch."token:cache==true".after_pull_commands = []
 
+
+post_build.commands = []
 
 [repo_build.build]
 enabled = true
@@ -132,6 +131,7 @@ ext_folders = [
     "${root}/source/apps",
     "${root}/deps/kit-cae/_build/${platform}/${config}/exts",
     "${root}/deps/kit-cae/_build/${platform}/${config}/apps",
+    "${root}/deps/kit-usd-agents/source/extensions",
 ]
 
 # registries = [

@@ -417,9 +417,14 @@ const AgentPanel = () => {
 
         // Handle start/stop thermal test (same as "Begin Test" button)
         if (action.start_test !== undefined && (action.panel === 'thermal' || (!action.panel && activeSimulationTab === 'thermal'))) {
+          const CFD_LAYER_ROOT = "/World/CFD_Layer";
           const CFD_LAYER_PATH = "/World/CFD_Layer/NV_DC_DS9_GB300_SinglePOD/CAE/IndeXVolume_Elements";
           setThermalIsRunning(action.start_test);
+          await switchVisibility(CFD_LAYER_ROOT, action.start_test);
           await switchVisibility(CFD_LAYER_PATH, action.start_test);
+          if (action.start_test) {
+            await switchCamera('/World/interactive_cameras/cfd_camera');
+          }
           console.info(`[AgentPanel] Thermal test ${action.start_test ? 'started' : 'stopped'}`);
         }
 

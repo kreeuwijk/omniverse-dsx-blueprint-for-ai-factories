@@ -22,12 +22,11 @@ def set_visibility_for_item(stage: Usd.Stage, path: str, visible: bool):
     if not img:
         return {"path": path, "ok": False, "error": "not_imageable"}
 
-    # Idempotency guard: skip if already in the desired state
-    current = img.ComputeVisibility()
-    if visible and current != UsdGeom.Tokens.invisible:
-        return {"path": path, "ok": True}  # already visible
-    if not visible and current == UsdGeom.Tokens.invisible:
-        return {"path": path, "ok": True}  # already invisible
+    vis_attr = img.GetVisibilityAttr()
+    target = "inherited" if visible else "invisible"
+    current = vis_attr.Get()
+    if current == target:
+        return {"path": path, "ok": True}
 
     if visible:
         img.MakeVisible()

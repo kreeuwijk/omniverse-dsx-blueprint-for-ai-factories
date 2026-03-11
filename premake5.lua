@@ -96,6 +96,42 @@ for something, ext in ipairs(os.matchdirs(root.."/deps/kit-cae/_build/"..platfor
     end
 end
 
+-- Symlink kit-usd-agents source extensions into our build output.
+-- kit-usd-agents' own build doesn't produce an exts/ directory, so we replicate what
+-- each extension's premake5.lua does: symlink subdirs from source, then overlay the
+-- pip prebundle dirs from kit-usd-agents' _build/target-deps/.
+local kit_agents_src = root.."/deps/kit-usd-agents/source/extensions"
+local kit_agents_deps = root.."/deps/kit-usd-agents/_build/target-deps"
+
+for _, ext_path in ipairs(os.matchdirs(kit_agents_src.."/*")) do
+    local ext_name = path.getname(ext_path)
+    for _, config in ipairs(ALL_CONFIGS) do
+        local target = root.."/_build/"..platform_target.."/"..config.."/exts/"..ext_name
+        for _, subdir in ipairs(os.matchdirs(ext_path.."/*")) do
+            local subdir_name = path.getname(subdir)
+            repo_build.prebuild_link {
+                { subdir, target.."/"..subdir_name }
+            }
+        end
+    end
+end
+
+if os.isdir(kit_agents_deps) then
+    for _, config in ipairs(ALL_CONFIGS) do
+        local exts_base = root.."/_build/"..platform_target.."/"..config.."/exts"
+        if os.isdir(kit_agents_deps.."/pip_core_prebundle") then
+            repo_build.prebuild_link {
+                { kit_agents_deps.."/pip_core_prebundle", exts_base.."/omni.ai.langchain.core/pip_core_prebundle" }
+            }
+        end
+        if os.isdir(kit_agents_deps.."/pip_nat_prebundle") then
+            repo_build.prebuild_link {
+                { kit_agents_deps.."/pip_nat_prebundle", exts_base.."/omni.ai.langchain.nat/pip_nat_prebundle" }
+            }
+        end
+    end
+end
+
 -- Symlink kit-cae build outputs into the main build directory
 -- repo_build.prebuild_link {
 --     { "%{root}/deps/kit-cae/_build/%{platform}/%{config}/apps", "%{root}/_build/%{platform}/%{config}/kit-cae/apps"},

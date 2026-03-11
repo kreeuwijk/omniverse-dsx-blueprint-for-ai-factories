@@ -55,6 +55,7 @@ Refer to the detailed [Technical Requirements](https://docs.omniverse.nvidia.com
 
 #### Software Requirements
 - [**Git**](https://git-scm.com/downloads): For version control and repository management
+- [**Git LFS**](https://git-lfs.com/): For managing large files within the repository
 - [**(Linux) Docker**](https://docs.docker.com/engine/install/ubuntu/): For containerized development and deployment. **Ensure non-root users have Docker permissions.**
 - [**(Linux) NVIDIA Container Toolkit**](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html): For GPU-accelerated containerized development and deployment
 - [**VSCode**](https://code.visualstudio.com/download) (or your preferred IDE): For code editing and development
@@ -129,7 +130,37 @@ cd dsx
 
 **First-time build:** The Kit application depends on the `deps/kit-cae` and `deps/kit-usd-agents` submodules. Both `./run_streaming.sh` and `./repo.sh build` automatically initialize submodules and build kit-cae on first run.
 
-### 2. Set Environment Variables (Optional)
+### 2. Download and Configure USD Scene Data
+
+The blueprint requires a USD scene dataset that is hosted separately from the repository.
+
+1. Download the [DSX Content Pack](https://catalog.ngc.nvidia.com/orgs/nvidia/teams/omniverse/resources/dsx_dataset) from NGC.
+
+2. Extract the archive to a location on your disk, for example:
+
+   **Linux:**
+   ```
+   /data/dsx/
+   ```
+
+   **Windows:**
+   ```
+   C:\data\dsx\
+   ```
+
+3. Open `source/apps/dsx.kit` and set the `auto_load_usd` path to point to your extracted USD scene file. For example, if you extracted the content pack to `/data/dsx/` (Linux) or `C:\data\dsx\` (Windows):
+
+   ```ini
+   [settings.app]
+   auto_load_usd = "<your_extract_path>/DSX_BP/Assembly/DSX_Main_BP.usda"
+   ```
+
+   Replace `<your_extract_path>` with the location you chose in step 2.
+
+> **Note:** The `auto_load_usd` value is empty by default. If you skip this step, the application will start but no scene will load.
+
+
+### 3. Set Environment Variables (Optional)
 
 The AI agent extension (`omni.ai.aiq.dsx`) requires an NVIDIA API key to communicate with the LLM backend. **The rest of the demo (3D viewer, camera controls, configurator) works without it.** If you want to use the AI chat agent, obtain a key from [build.nvidia.com](https://build.nvidia.com/) and set it as a persistent environment variable:
 
@@ -146,7 +177,7 @@ source ~/.bashrc
 
 > **NOTE:** Restart your terminal after setting the variable. If `NVIDIA_API_KEY` is not set, the chat panel will display a message explaining how to enable the AI agent.
 
-### 3. Start the Kit Application (Terminal 1)
+### 4. Start the Kit Application (Terminal 1)
 
 The `run_streaming` script will build (if needed) and launch the Kit application with streaming enabled.
 
@@ -162,7 +193,7 @@ The `run_streaming` script will build (if needed) and launch the Kit application
 
 > **NOTE:** Initial startup may take 5-8 minutes for shader compilation. Subsequent launches will be much faster.
 
-### 4. Start the Web Frontend (Terminal 2)
+### 5. Start the Web Frontend (Terminal 2)
 
 The `run_web` script will install dependencies and start the development server.
 

@@ -28,14 +28,14 @@ replace_md_file_references = None
 _AI_IMPORTS_AVAILABLE = False
 
 try:
-    from aiq.cli.cli_utils.config_override import load_and_override_config
-    from aiq.runtime.loader import PluginTypes, discover_and_register_plugins
+    from nat.cli.cli_utils.config_override import load_and_override_config
+    from nat.runtime.loader import PluginTypes, discover_and_register_plugins
     from lc_agent import get_node_factory, RunnableNetwork, RunnableHumanNode
     from .utils.config_utils import replace_md_file_references
     _AI_IMPORTS_AVAILABLE = True
     # Cache lc_agent refs for daemon threads (HTTP handler)
     set_lc_agent_refs(get_node_factory, RunnableNetwork, RunnableHumanNode)
-    print("[omni.ai.aiq.dsx] Core AI imports (aiq, lc_agent) loaded successfully")
+    print("[omni.ai.aiq.dsx] Core AI imports (nat, lc_agent) loaded successfully")
 except ImportError as e:
     print(f"[omni.ai.aiq.dsx] Core AI imports not available: {e}")
     import traceback
@@ -84,7 +84,7 @@ def _load_base_aiq_config():
 
     We intentionally bypass ``load_and_override_config`` (which creates Pydantic
     model objects).  The ``RunnableNATNode`` internally calls
-    ``AIQConfig.model_validate()`` on the dict, and if it receives or re-validates
+    ``Config.model_validate()`` on the dict, and if it receives or re-validates
     already-instantiated Config objects the bare discriminator tag from
     ``name="DsxCodeInteractive"`` fails the union check.  Keeping the config as
     a plain dict avoids this entirely.

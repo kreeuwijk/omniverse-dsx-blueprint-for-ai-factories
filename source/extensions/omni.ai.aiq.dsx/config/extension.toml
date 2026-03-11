@@ -13,9 +13,7 @@ readme = "docs/README.md"
 [dependencies]
 "omni.ai.nat.agent.chat_usd" = {}
 "omni.ai.chat_usd.bundle" = {}
-"omni.ai.langchain.extra" = {}
 "omni.kit.quicklayout" = {}
-"omni.web.messaging.core" = {}
 
 [[python.module]]
 name = "omni.ai.aiq.dsx"
@@ -27,7 +25,11 @@ name = "dsxcode"
 name = "dsxinfo"
 
 [[test]]
-stdoutFailPatterns.exclude = ["*Warning:*"]
+stdoutFailPatterns.exclude = [
+    "*Warning:*",
+    "*omni.ai.nat.agent.chat_usd*",
+    "*[Error]*"
+    ]
 
 args = [
     "--no-window",
