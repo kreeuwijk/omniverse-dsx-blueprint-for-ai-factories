@@ -69,5 +69,4 @@ args = [
 
 stdoutFailPatterns.exclude = [
     "*UsdContext busy*",  # Expected during startup when loading USD stage
-    "*omni.ai.nat.agent.chat_usd*",  # nat.agent subpackage missing from prebundle
 ]

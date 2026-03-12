@@ -28,7 +28,12 @@ def bootstrap():
     with contextlib.redirect_stdout(io.StringIO()):
         for file in [REPO_DEPS_FILE, OPT_DEPS_FILE]:
             if file.is_file():
-                deps = packmanapi.pull(file.as_posix())
+                try:
+                    deps = packmanapi.pull(file.as_posix())
+                except Exception:
+                    if file == OPT_DEPS_FILE:
+                        continue
+                    raise
 
                 for dep_path in deps.values():
                     if dep_path not in sys.path:

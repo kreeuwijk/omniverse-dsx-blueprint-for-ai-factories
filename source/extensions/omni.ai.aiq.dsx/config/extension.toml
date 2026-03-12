@@ -11,7 +11,8 @@ changelog = "docs/CHANGELOG.md"
 readme = "docs/README.md"
 
 [dependencies]
-"omni.ai.nat.agent.chat_usd" = {}
+"omni.ai.langchain.nat" = {}
+"omni.ai.nat.agent.chat_usd" = { optional = true }
 "omni.ai.chat_usd.bundle" = {}
 "omni.kit.quicklayout" = {}
 
@@ -27,9 +28,7 @@ name = "dsxinfo"
 [[test]]
 stdoutFailPatterns.exclude = [
     "*Warning:*",
-    "*omni.ai.nat.agent.chat_usd*",
-    "*[Error]*"
-    ]
+]
 
 args = [
     "--no-window",
