@@ -125,7 +125,7 @@ DSX provides convenient scripts to get up and running quickly. You'll need two t
 
 ```bash
 git clone <repository-url>
-cd dsx
+cd omniverse-dsx-blueprint-for-ai-factories
 ```
 
 **First-time build:** The Kit application depends on the `deps/kit-cae` and `deps/kit-usd-agents` submodules. Both `./run_streaming.sh` and `./repo.sh build` automatically initialize submodules and build kit-cae on first run.
@@ -397,7 +397,7 @@ Application hangs during render initialization (IOMMU/zenity dialog)
 * Disable IOMMU at the system level.
 
 Unable to display map. WebGL2 support is required
-* Enable hardware acceleratioin in your browser.
+* Enable hardware acceleration in your browser.
 
 ---
 
