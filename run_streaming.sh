@@ -39,6 +39,12 @@ if [ ! -d "_build" ]; then
     ./repo.sh build -r
 fi
 
+# DSX uses its own web UI, so the built-in chat widget window is not needed.
+WIDGET_TOML="deps/kit-usd-agents/source/extensions/omni.ai.chat_usd.bundle/config/extension.toml"
+if [ -f "$WIDGET_TOML" ]; then
+    sed -i 's/"omni.ai.langchain.widget.core" = { version = "3.0.0" }/"omni.ai.langchain.widget.core" = { version = "3.0.0", optional = true }/' "$WIDGET_TOML"
+fi
+
 # Run the streaming version with no window
 ./repo.sh launch dsx_streaming.kit -- \
     --no-window \

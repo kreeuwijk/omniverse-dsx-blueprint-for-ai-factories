@@ -47,5 +47,11 @@ if not exist "_build" (
     if errorlevel 1 ( echo Build failed! & exit /b 1 )
 )
 
+REM DSX uses its own web UI, so the built-in chat widget window is not needed.
+set "WIDGET_TOML=deps\kit-usd-agents\source\extensions\omni.ai.chat_usd.bundle\config\extension.toml"
+if exist "%WIDGET_TOML%" (
+    powershell -Command "(Get-Content '%WIDGET_TOML%') -replace '\"omni.ai.langchain.widget.core\" = \{ version = \"3.0.0\" \}', '\"omni.ai.langchain.widget.core\" = { version = \"3.0.0\", optional = true }' | Set-Content '%WIDGET_TOML%'"
+)
+
 REM Run the streaming version with no window
 call repo.bat launch dsx_streaming.kit -- --no-window %*
