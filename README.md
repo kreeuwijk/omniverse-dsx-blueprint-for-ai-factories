@@ -13,6 +13,8 @@ Developers are expected to use this guide as a starting point and extend the blu
 ## Workflow
 ![Workflow Diagram](readme-assets/workflow-diagram.png)
 
+For a comprehensive overview of the workflow and system architecture, see the [DSX Blueprint Guide](http://docs.omniverse.nvidia.com/dsx/latest/index.html).
+
 ### Platform Components
 
 This repo contains:
