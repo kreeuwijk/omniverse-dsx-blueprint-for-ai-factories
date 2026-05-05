@@ -49,12 +49,14 @@ export default defineConfig({
         main: resolve(__dirname, "index.html"),
       },
       output: {
-        manualChunks: {
-          "vendor-react": ["react", "react-dom", "react-router-dom"],
-          "vendor-mantine": ["@mantine/core", "@mantine/hooks", "@mantine/notifications"],
-          "vendor-arcgis": ["@arcgis/core"],
-          "vendor-webrtc": ["@nvidia/omniverse-webrtc-streaming-library"],
-          "vendor-charts": ["recharts"],
+        manualChunks(id) {
+          if (id.includes("node_modules")) {
+            if (id.includes("@arcgis/core")) return "vendor-arcgis";
+            if (id.includes("react-router") || id.includes("/react-dom/") || id.includes("/react/")) return "vendor-react";
+            if (id.includes("@mantine")) return "vendor-mantine";
+            if (id.includes("@nvidia/omniverse-webrtc")) return "vendor-webrtc";
+            if (id.includes("recharts")) return "vendor-charts";
+          }
         },
       },
     },
