@@ -1,0 +1,28 @@
+# Wrapper image that patches the Kit container produced by `repo.sh package_container`.
+#
+# Why: omni.kit.pip_archive bundles typing_extensions 4.12.2, which loads
+# first in Kit's sys.path and shadows the 4.15.0 copies bundled by
+# omni.ai.langchain.* extensions. PEP 728 (`extra_items=` on TypedDict)
+# was added in typing_extensions 4.13, so 4.12.2 raises:
+#   TypeError: _TypedDictMeta.__new__() got an unexpected keyword argument 'extra_items'
+# when langchain_protocol/langchain_core try to define their TypedDicts.
+#
+# Fix: replace the 4.12.2 copy in pip_archive with the 4.15.0 copy that
+# ships inside omni.ai.langchain.core/pip_core_prebundle. No NVIDIA source
+# is touched and no extra package needs to be downloaded.
+
+ARG BASE_IMAGE
+FROM ${BASE_IMAGE}
+
+USER root
+
+RUN set -e && \
+    SRC=/app/exts/omni.ai.langchain.core/pip_core_prebundle && \
+    DST=$(ls -d /app/extscache/omni.kit.pip_archive-*/pip_prebundle | head -1) && \
+    test -n "$DST" && \
+    cp "$SRC/typing_extensions.py" "$DST/typing_extensions.py" && \
+    rm -rf "$DST/typing_extensions-4.12.2.dist-info" && \
+    cp -r "$SRC/typing_extensions-4.15.0.dist-info" "$DST/" && \
+    find "$DST/__pycache__" -name "typing_extensions*" -delete 2>/dev/null || true
+
+USER ubuntu
