@@ -27,6 +27,20 @@ replace_md_file_references = None
 
 _AI_IMPORTS_AVAILABLE = False
 
+def _install_typeddict_extra_items_compat():
+    try:
+        import typing
+        from typing_extensions import TypedDict as TypedDictWithExtraItems
+
+        class _ExtraItemsProbe(TypedDictWithExtraItems, extra_items=object):
+            pass
+
+        typing.TypedDict = TypedDictWithExtraItems
+    except Exception as e:
+        print(f"[omni.ai.aiq.dsx] TypedDict compatibility shim unavailable: {type(e).__name__}: {e}")
+
+_install_typeddict_extra_items_compat()
+
 try:
     from nat.cli.cli_utils.config_override import load_and_override_config
     from nat.runtime.loader import PluginTypes, discover_and_register_plugins

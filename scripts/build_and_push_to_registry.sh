@@ -97,15 +97,6 @@ step_package_kit_container() {
   PATH=${PATH} LD_LIBRARY_PATH=${LD_LIBRARY_PATH:-} ./repo.sh package_container \
     --app dsx_nvcf.kit \
     --image-tag "${KIT_REPO}:${TAG}"
-
-  # Apply the typing_extensions PEP 728 fix on top of the produced image.
-  # See scripts/Dockerfile.kit-patch for details.
-  echo ">>> Patching typing_extensions in pip_archive (PEP 728 fix)"
-  docker build \
-    --build-arg BASE_IMAGE="${KIT_REPO}:${TAG}" \
-    -f "${REPO_ROOT}/scripts/Dockerfile.kit-patch" \
-    -t "${KIT_REPO}:${TAG}" \
-    "${REPO_ROOT}/scripts"
 }
 
 # ============================================================================

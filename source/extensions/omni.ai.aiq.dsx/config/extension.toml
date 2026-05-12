@@ -11,9 +11,10 @@ changelog = "docs/CHANGELOG.md"
 readme = "docs/README.md"
 
 [dependencies]
+"omni.ai.langchain.core" = {}
 "omni.ai.langchain.nat" = {}
 "omni.ai.nat.agent.chat_usd" = { optional = true }
-"omni.ai.chat_usd.bundle" = {}
+"omni.ai.chat_usd.bundle" = { optional = true }
 "omni.kit.quicklayout" = {}
 
 [[python.module]]
