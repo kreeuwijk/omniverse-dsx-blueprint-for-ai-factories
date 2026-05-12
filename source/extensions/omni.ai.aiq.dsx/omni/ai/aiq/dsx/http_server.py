@@ -23,6 +23,20 @@ from collections import defaultdict
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from typing import Optional
 
+def _install_typeddict_extra_items_compat():
+    try:
+        import typing
+        from typing_extensions import TypedDict as TypedDictWithExtraItems
+
+        class _ExtraItemsProbe(TypedDictWithExtraItems, extra_items=object):
+            pass
+
+        typing.TypedDict = TypedDictWithExtraItems
+    except Exception as e:
+        print(f"[omni.ai.aiq.dsx] TypedDict compatibility shim unavailable: {type(e).__name__}: {e}")
+
+_install_typeddict_extra_items_compat()
+
 import carb
 
 try:

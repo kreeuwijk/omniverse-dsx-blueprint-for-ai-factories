@@ -7,6 +7,20 @@ so workflow.yaml can reference them via _type.
 import logging
 from typing import List, Optional, Type
 
+def _install_typeddict_extra_items_compat():
+    try:
+        import typing
+        from typing_extensions import TypedDict as TypedDictWithExtraItems
+
+        class _ExtraItemsProbe(TypedDictWithExtraItems, extra_items=object):
+            pass
+
+        typing.TypedDict = TypedDictWithExtraItems
+    except Exception as e:
+        print(f"[omni.ai.aiq.dsx] TypedDict compatibility shim unavailable: {type(e).__name__}: {e}")
+
+_install_typeddict_extra_items_compat()
+
 from nat.builder.builder import Builder
 from nat.builder.framework_enum import LLMFrameworkEnum
 from nat.cli.register_workflow import register_function
@@ -21,7 +35,6 @@ except ImportError:
     MultiAgentNetworkFunction = None
 
 logger = logging.getLogger(__name__)
-
 
 def create_gen_class_with_system_message(base_class: Type, system_message: Optional[str]) -> Type:
     """Create a Gen class with system_message pre-configured (Pydantic-compatible)."""
