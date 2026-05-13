@@ -1,5 +1,20 @@
 # This Dockerfile is used as the base for containerizing applications rendered out via repo_kit_template.
 
+# --- Stage 1: fetch a newer libstdc++6 ---------------------------------------------------------
+# We can't run apt-get install in the NVIDIA base (its apt is locked to urm.nvidia.com which
+# isn't externally resolvable, so `software-properties-common` isn't available). Use a plain
+# ubuntu:22.04 image which has working apt to pull libstdc++6 from ubuntu-toolchain-r/test
+# (built against jammy glibc 2.35, so no GLIBC_2.38 problem when copied into ov-base-ubuntu-22).
+FROM ubuntu:22.04 AS libstdcxx-source
+RUN apt-get update \
+ && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+        software-properties-common gnupg ca-certificates \
+ && add-apt-repository -y ppa:ubuntu-toolchain-r/test \
+ && apt-get update \
+ && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends libstdc++6 \
+ && rm -rf /var/lib/apt/lists/*
+
+# --- Stage 2: the actual Kit container, on top of ov-base-ubuntu-22 ---------------------------
 # This is the base image for the container. It is based on Ubuntu 22.04.
 FROM nvcr.io/nvidia/omniverse/ov-base-ubuntu-22:2025.2.0
 
@@ -15,6 +30,21 @@ RUN usermod -aG sudo ubuntu
 # nopasswd sudo
 RUN mkdir -p /etc/sudoers.d/
 RUN echo "ubuntu ALL=(ALL:ALL) NOPASSWD: ALL" | tee /etc/sudoers.d/ubuntu
+
+# --- libstdc++ runtime upgrade ---------------------------------------------------------------------
+# kit-cae C++ extensions (omni.cae.*) are compiled with the build host's system g++ (Ubuntu 24.04
+# ships GCC 13.x), so their .so files require GLIBCXX_3.4.32, which the GCC-12 libstdc++ in this
+# ov-base-ubuntu-22 base image does not provide. Pull a newer libstdc++6 from the libstdcxx-source
+# stage above (built against jammy's glibc 2.35 — no GLIBC_2.38 breakage) and re-point the symlink.
+# Remove this block if kit-cae is instead built on a 22.04 host / with g++-12.
+COPY --from=libstdcxx-source /usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.* /usr/lib/x86_64-linux-gnu/
+RUN set -ex \
+ && cd /usr/lib/x86_64-linux-gnu \
+ && NEWEST=$(ls -1 libstdc++.so.6.0.* | sort -V | tail -1) \
+ && rm -f libstdc++.so.6 \
+ && ln -s "$NEWEST" libstdc++.so.6 \
+ && ls -l libstdc++.so.6 libstdc++.so.6.0.*
+# --------------------------------------------------------------------------------------------------
 
 # repo package_container tool splits build dir in 2:
 # - base layer: kit kernel + exts cache

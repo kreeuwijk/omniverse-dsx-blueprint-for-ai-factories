@@ -32,6 +32,9 @@ window.height = 1080
 window.width = 1920
 
 [settings]
+# Bind the Kit HTTP transport (livestream readiness endpoint /v1/streaming/ready, service routes)
+# to 8111 so the Helm/K8s readiness probe works. Without this it defaults to 8011.
+exts."omni.services.transport.server.http".port = 8111
 rtx.post.aa.op = 3
 rtx.hydra.geometrystreaming.gpuBudgetMB = 40000
 rtx.hydra.geometrystreaming.instanceBudget = 14388608

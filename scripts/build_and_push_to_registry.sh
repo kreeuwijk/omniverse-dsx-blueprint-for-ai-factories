@@ -53,11 +53,6 @@ if [ -d ./deps/kit-cae/_build ]; then
   echo "Done."
 fi
 
-if cat ./deps/kit-usd-agents/deps/pip-aiq.toml | grep 'typing-extensions>=4.0.0'; then
-  echo "Updating outdated version of typing-extensions..."
-  sed -i 's/typing-extensions>=4.0.0/typing-extensions>=4.13.2/' ./deps/kit-usd-agents/deps/pip-aiq.toml  
-fi
-
 # ============================================================================
 # Step 1 — Login to Registry (Docker + Helm)
 # ============================================================================

@@ -32,6 +32,27 @@ fi
 
 # ---- kit-usd-agents ----
 if [ -d "$ROOT/deps/kit-usd-agents" ]; then
+    # Make chat widget optional to prevent ImGui startup crash in headless/container mode
+    # (same fix as commit 047af7e, but applied to build pipeline instead of run_streaming.sh)
+    WIDGET_TOML="$ROOT/deps/kit-usd-agents/source/extensions/omni.ai.chat_usd.bundle/config/extension.toml"
+    if [ -f "$WIDGET_TOML" ]; then
+        sed -i 's/"omni.ai.langchain.widget.core" = { version = "3.0.0" }/"omni.ai.langchain.widget.core" = { version = "3.0.0", optional = true }/' "$WIDGET_TOML"
+    fi
+
+    # Import TypedDict from typing_extensions (PEP 728 extra_items support) instead of typing.
+    # langchain_core >=1.2 expects extra_items kwarg which Python 3.12 stdlib typing.TypedDict
+    # doesn't accept, causing _TypedDictMeta.__new__() crash when widget extension loads.
+    TOKENIZER_PY="$ROOT/deps/kit-usd-agents/source/extensions/omni.ai.chat_usd.bundle/omni/ai/chat_usd/bundle/tokenizer.py"
+    if [ -f "$TOKENIZER_PY" ] && ! grep -q "from typing_extensions import TypedDict" "$TOKENIZER_PY"; then
+        sed -i 's/^from typing import \(.*\), TypedDict\(.*\)$/from typing import \1\2\nfrom typing_extensions import TypedDict/' "$TOKENIZER_PY"
+    fi
+
+    # Bump typing-extensions pin to 4.13.2 so PEP 728 features are available at pip-aiq resolve time.
+    PIP_AIQ="$ROOT/deps/kit-usd-agents/deps/pip-aiq.toml"
+    if [ -f "$PIP_AIQ" ] && grep -q 'typing-extensions>=4.0.0' "$PIP_AIQ"; then
+        sed -i 's/typing-extensions>=4.0.0/typing-extensions>=4.13.2/' "$PIP_AIQ"
+    fi
+
     if [ ! -d "$ROOT/deps/kit-usd-agents/_build/target-deps/pip_core_prebundle" ]; then
         echo "[DSX] Building kit-usd-agents submodule..."
         cd "$ROOT/deps/kit-usd-agents"
