@@ -5,10 +5,11 @@
 #   - Linux x86_64 build host with NVIDIA toolchain (Kit cannot cross-build)
 #
 # Usage:
-#   ./scripts/build_and_push_to_registry.sh               # full pipeline
-#   STEP=login ./scripts/build_and_push_to_registry.sh    # only ECR login
-#   STEP=images ./scripts/build_and_push_to_registry.sh   # only build+push images
-#   STEP=chart ./scripts/build_and_push_to_registry.sh    # only push helm chart
+#   ./build_and_push_to_registry.sh               # full pipeline
+#   STEP=login ./build_and_push_to_registry.sh    # only registry login
+#   STEP=images ./build_and_push_to_registry.sh   # only build+push images
+#   STEP=chart ./build_and_push_to_registry.sh    # only push helm chart
+#   STEP=local ./build_and_push_to_registry.sh    # build kit + web locally, no login, no push
 
 set -euo pipefail
 
@@ -74,7 +75,7 @@ step_login() {
 step_build_kit_app() {
   echo ">>> Building Kit application via repo.sh"
   pwd
-  PATH=${PATH} LD_LIBRARY_PATH=${LD_LIBRARY_PATH} ./repo.sh build --release
+  PATH=${PATH} LD_LIBRARY_PATH=${LD_LIBRARY_PATH:-} ./repo.sh build --release
 }
 
 # ============================================================================
@@ -93,9 +94,18 @@ step_package_kit_container() {
 
   # The container target is defined in repo.toml [repo_kit_package_container].
   # --app selects the Kit app (dsx_nvcf.kit) to containerize.
-  PATH=${PATH} LD_LIBRARY_PATH=${LD_LIBRARY_PATH} ./repo.sh package_container \
+  PATH=${PATH} LD_LIBRARY_PATH=${LD_LIBRARY_PATH:-} ./repo.sh package_container \
     --app dsx_nvcf.kit \
     --image-tag "${KIT_REPO}:${TAG}"
+
+  # Apply the typing_extensions PEP 728 fix on top of the produced image.
+  # See scripts/Dockerfile.kit-patch for details.
+  echo ">>> Patching typing_extensions in pip_archive (PEP 728 fix)"
+  docker build \
+    --build-arg BASE_IMAGE="${KIT_REPO}:${TAG}" \
+    -f "${REPO_ROOT}/scripts/Dockerfile.kit-patch" \
+    -t "${KIT_REPO}:${TAG}" \
+    "${REPO_ROOT}/scripts"
 }
 
 # ============================================================================
@@ -114,13 +124,22 @@ step_push_kit() {
 # ============================================================================
 # Step 5 — Build and push Web image
 # ============================================================================
-step_build_push_web() {
+step_build_web() {
   echo ">>> Building Web image from $WEB_DOCKERFILE"
+  local npmrc="${NPMRC:-${REPO_ROOT}/web/.npmrc}"
+  if [ ! -f "$npmrc" ]; then
+    echo "ERROR: npmrc not found at $npmrc — set NPMRC=/path/to/.npmrc or create web/.npmrc"
+    exit 1
+  fi
   docker build \
-    --secret id=npmrc,src=$HOME/omniverse-dsx-blueprint-for-ai-factories/web/.npmrc \
+    --secret id=npmrc,src="$npmrc" \
     -f "$WEB_DOCKERFILE" \
     -t "${WEB_REPO}:${TAG}" \
     "$WEB_BUILD_CONTEXT"
+}
+
+step_build_push_web() {
+  step_build_web
 
   echo ">>> Tagging Web image for Registry"
   docker tag "${WEB_REPO}:${TAG}" "${REGISTRY}/${WEB_REPO}:${TAG}"
@@ -160,17 +179,26 @@ case "${STEP:-all}" in
   images)  step_login && step_build_kit_app && step_package_kit_container && step_push_kit && step_build_push_web ;;
   chart)   step_login && step_push_chart ;;
   all)     step_login && step_build_kit_app && step_package_kit_container && step_push_kit && step_build_push_web && step_push_chart ;;
-  *)       echo "Unknown STEP=$STEP. Valid: login|kit|web|images|chart|all"; exit 1 ;;
+  local)   step_build_kit_app && step_package_kit_container && step_build_web ;;
+  *)       echo "Unknown STEP=$STEP. Valid: login|kit|web|images|chart|all|local"; exit 1 ;;
 esac
 
 echo ""
 echo "============================================================"
-echo "Done. To install with helm:"
-echo ""
-echo "  helm install dsx oci://${REGISTRY}/${CHART_REPO}/dsx \\"
-echo "    --version \$(helm show chart oci://${REGISTRY}/${CHART_REPO}/dsx | grep '^version:' | awk '{print \$2}') \\"
-echo "    --set kit.image.repository=${REGISTRY}/${KIT_REPO} \\"
-echo "    --set kit.image.tag=${TAG} \\"
-echo "    --set web.image.repository=${REGISTRY}/${WEB_REPO} \\"
-echo "    --set web.image.tag=${TAG}"
+if [ "${STEP:-all}" = "local" ]; then
+  echo "Local build done. Images available:"
+  echo "  ${KIT_REPO}:${TAG}"
+  echo "  ${WEB_REPO}:${TAG}"
+  echo ""
+  echo "Verify with: docker images | grep -E '${KIT_REPO}|${WEB_REPO}'"
+else
+  echo "Done. To install with helm:"
+  echo ""
+  echo "  helm install dsx oci://${REGISTRY}/${CHART_REPO}/dsx \\"
+  echo "    --version \$(helm show chart oci://${REGISTRY}/${CHART_REPO}/dsx | grep '^version:' | awk '{print \$2}') \\"
+  echo "    --set kit.image.repository=${REGISTRY}/${KIT_REPO} \\"
+  echo "    --set kit.image.tag=${TAG} \\"
+  echo "    --set web.image.repository=${REGISTRY}/${WEB_REPO} \\"
+  echo "    --set web.image.tag=${TAG}"
+fi
 echo "============================================================"
