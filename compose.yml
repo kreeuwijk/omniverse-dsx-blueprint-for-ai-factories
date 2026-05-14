@@ -1,33 +1,45 @@
-# Docker Compose for local development with Kit streaming
+# Docker Compose for local smoke-test of the DSX container build.
+#
+# Prereq:
+#   1) Build images first:
+#        STEP=local ./scripts/build_and_push_to_registry.sh
+#      That produces  dsx-kit:v1.0.0  (via repo.sh package_container + Dockerfile.kit-patch)
+#      and  dsx-web:v1.0.0  (via web/Dockerfile).
+#   2) Tag as :latest so this compose finds them:
+#        docker tag dsx-kit:v1.0.0 dsx-kit:latest
+#        docker tag dsx-web:v1.0.0 dsx-web:latest
+#   3) (optional) Have the DSX dataset extracted at /home/$USER/dsx_data — see DSX_DATA below.
 #
 # Usage:
-#   docker compose up        # Start Kit and Web containers
-#   docker compose up -d     # Start in background
-#   docker compose down      # Stop containers
+#   docker compose up        # foreground (recommended for first run, see all logs)
+#   docker compose up -d     # background
+#   docker compose down      # stop + remove
 #
 # Access:
-#   Web UI: http://localhost:8080?server=localhost
-#   Kit signaling: localhost:49100
+#   Web UI:        http://localhost:8080?server=localhost
+#   Kit signaling: ws://localhost:49100
+#   Readiness:     curl localhost:8111/v1/streaming/ready
+#
+# NOTE on local GPU limits: the full DSX scene is sized for 40–48 GB datacenter GPUs.
+# On a 16 GB consumer card the scene load is expected to OOM during texture upload
+# (~150s in) even with the reduced-quality args below. That is fine for validating
+# the *container* fixes (TypedDict / GLIBCXX / readiness on 8111) — they all
+# manifest before scene load. For full-scene rendering use the K8s deploy.
 
 services:
   kit:
-    image: "dsx-kit:latest"
-    build:
-      context: .
+    image: "dsx-kit:latest"          # built locally by scripts/build_and_push_to_registry.sh STEP=local
+    # NO `build:` block — the Kit image is NOT built by `docker build`.
+    # It is produced by `./repo.sh package_container` (premake/packman → BASE_LAYER/APP_LAYER
+    # tarballs → tools/containers/Dockerfile), then wrapped by scripts/Dockerfile.kit-patch.
+    # If `image:` is missing, run the STEP=local build first.
     privileged: true
-    restart: unless-stopped
-    network_mode: host
-    # Note: ports are ignored when network_mode is host; listed for documentation only
-    ports:
-      - "1024:1024/udp"
-      - "49100:49100/tcp"
-      - "47995-48012:47995-48012/tcp"
-      - "49000-49007:49000-49007/tcp"
-      - "47995-48012:47995-48012/udp"
-      - "49000-49007:49000-49007/udp"
-    entrypoint: ["./scripts/run_streaming.sh"]
-    environment:
-      USD_URL: "${USD_URL:-/app/assets/main/main.usda}"
+    restart: "no"                    # don't auto-restart on OOM — we want to see the crash
+    network_mode: host               # browser ↔ Kit signaling/UDP on localhost; avoids the pod-IP-not-routable problem locally
+    # Ports are ignored under network_mode: host; kept here as documentation:
+    #   49100/tcp  WebSocket signaling
+    #   8111/tcp   HTTP transport (readiness, /streaming/session/setup)
+    #   47995-48012, 49000-49007  UDP/TCP WebRTC media + data channel
     deploy:
       resources:
         reservations:
@@ -37,16 +49,32 @@ services:
               capabilities: [gpu]
     volumes:
       - "ov-cache:/home/ubuntu/.cache/ov"
-      - "ov-local-share:/home/ubuntu/.local/share/ov/"
+      - "ov-local-share:/home/ubuntu/.local/share/ov"
+      # DSX dataset — mount read-only into the container. Change DSX_DATA env on host
+      # if you extracted elsewhere. Skip this mount if you only want to validate
+      # startup without loading a scene.
+      - "${DSX_DATA:-/home/filip/dsx_data}:/data/dsx:ro"
+    # Container entrypoint (/app/entrypoint.sh from tools/containers/entrypoint.sh) appends
+    # anything after the kit_app file path as Kit args via `"$@"`. Pass our overrides here:
+    command:
+      - --/app/auto_load_usd=/data/dsx/DSX_BP_/DSX_BP/Assembly/DSX_Main_BP.usda
+      # --- reduced-quality args (16 GB consumer GPU) ---
+      - --/rtx/rendermode=RaytracedLighting       # disable RTPT (path tracing) → biggest VRAM saver
+      - --/rtx-transient/dlssg/enabled=false      # no frame-gen buffers
+      - --/rtx/hydra/geometrystreaming/gpuBudgetMB=8000  # force geometry to page
+      - --/app/renderer/resolution/width=1280
+      - --/app/renderer/resolution/height=720
 
   web:
-    image: "dsx-web:latest"
+    image: "dsx-web:latest"          # built locally by scripts/build_and_push_to_registry.sh STEP=local
     build:
       context: web
       dockerfile: Dockerfile
     ports:
-      - "8080:8080/tcp"
+      - "8080:8080/tcp"              # nginx in container → host:8080
     environment:
+      # Browser-side: reads these (baked at vite build) to know where Kit's signaling is.
+      # Browser sees Kit on host's localhost:49100 because Kit uses network_mode: host.
       VITE_OMNIVERSE_SERVER: "localhost"
       VITE_SIGNALING_PORT: "49100"
 
